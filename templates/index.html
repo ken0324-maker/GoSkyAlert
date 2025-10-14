@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✈️ 智慧航班搜尋</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- 頁首 -->
+        <header class="header">
+            <h1><i class="fas fa-plane"></i> 智慧航班搜尋</h1>
+            <p>快速找到最優惠的航班</p>
+        </header>
+
+        <!-- 搜尋表單 -->
+        <div class="search-card">
+            <form id="searchForm" class="search-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="origin"><i class="fas fa-plane-departure"></i> 出發地</label>
+                        <input type="text" id="origin" name="origin" placeholder="例如: TPE" required>
+                        <div class="suggestions" id="originSuggestions"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="destination"><i class="fas fa-plane-arrival"></i> 目的地</label>
+                        <input type="text" id="destination" name="destination" placeholder="例如: NRT" required>
+                        <div class="suggestions" id="destinationSuggestions"></div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="departureDate"><i class="fas fa-calendar-alt"></i> 出發日期</label>
+                        <input type="date" id="departureDate" name="departure_date" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="returnDate"><i class="fas fa-calendar-check"></i> 回程日期 (選填)</label>
+                        <input type="date" id="returnDate" name="return_date">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="adults"><i class="fas fa-users"></i> 旅客人數</label>
+                        <select id="adults" name="adults">
+                            <option value="1">1 位成人</option>
+                            <option value="2">2 位成人</option>
+                            <option value="3">3 位成人</option>
+                            <option value="4">4 位成人</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="currency"><i class="fas fa-money-bill-wave"></i> 貨幣</label>
+                        <select id="currency" name="currency">
+                            <option value="TWD">新台幣 (TWD)</option>
+                            <option value="USD">美元 (USD)</option>
+                            <option value="JPY">日圓 (JPY)</option>
+                            <option value="EUR">歐元 (EUR)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="search-btn">
+                    <i class="fas fa-search"></i> 搜尋航班
+                </button>
+            </form>
+        </div>
+
+        <!-- 載入動畫 -->
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>正在搜尋航班中...</p>
+        </div>
+
+        <!-- 結果區域 -->
+        <div id="results" class="results hidden">
+            <h2><i class="fas fa-list"></i> 搜尋結果</h2>
+            <div id="resultsCount" class="results-count"></div>
+            <div id="flightsList" class="flights-list"></div>
+        </div>
+
+        <!-- 錯誤訊息 -->
+        <div id="error" class="error hidden">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span id="errorMessage"></span>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
+<!-- 在搜尋表單底部添加 -->
+<div class="telegram-section">
+    <label>
+        <input type="checkbox" id="enableTelegram" name="enable_telegram">
+        📱 發送到 Telegram
+    </label>
+    <input type="text" id="telegramChatId" name="chat_id" placeholder="Telegram Chat ID" style="display: none;">
+    <small><a href="#" onclick="showTelegramHelp()">如何取得 Chat ID？</a></small>
+</div>
+
+<script>
+// 簡單的顯示/隱藏邏輯
+document.getElementById('enableTelegram').addEventListener('change', function() {
+    document.getElementById('telegramChatId').style.display = this.checked ? 'block' : 'none';
+});
+</script>
