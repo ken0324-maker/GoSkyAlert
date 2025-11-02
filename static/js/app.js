@@ -195,14 +195,15 @@ class FlightSearchApp {
         const resultsDiv = document.getElementById('results');
         const countDiv = document.getElementById('resultsCount');
         const flightsDiv = document.getElementById('flightsList');
+        const weatherDiv = document.getElementById('weatherInfo');
 
         // 檢查元素是否存在
-        if (!resultsDiv || !countDiv || !flightsDiv) {
+        if (!resultsDiv || !countDiv || !flightsDiv || !weatherDiv) {
             console.error('❌ 找不到必要的DOM元素');
             return;
         }
 
-        // 清空之前的结果
+        // 清空之前的結果
         flightsDiv.innerHTML = '';
 
         if (!data.success) {
@@ -213,7 +214,8 @@ class FlightSearchApp {
                     <p>${data.error || '未知錯誤'}</p>
                 </div>
             `;
-        } else if (!data.data || data.data.length === 0) {
+            this.hideElement('weatherInfo');
+        } else if (!data.data || !data.data.flights || data.data.flights.length === 0) {
             countDiv.textContent = '找到 0 個航班';
             flightsDiv.innerHTML = `
                 <div style="text-align: center; padding: 40px; color: #666;">
@@ -222,11 +224,24 @@ class FlightSearchApp {
                     <p>請嘗試調整搜尋條件</p>
                 </div>
             `;
+            this.hideElement('weatherInfo');
         } else {
-            countDiv.textContent = `找到 ${data.count || data.data.length} 個航班`;
-            console.log(`📈 顯示 ${data.data.length} 個航班`);
+            const flights = data.data.flights;
+            const weatherInfo = data.data.weather;
             
-            data.data.forEach((flight, index) => {
+            countDiv.textContent = `找到 ${data.data.meta?.count || flights.length} 個航班`;
+            console.log(`📈 顯示 ${flights.length} 個航班`);
+            
+            // 顯示天氣資訊
+            if (weatherInfo) {
+                this.displayWeatherInfo(weatherInfo);
+                this.showElement('weatherInfo');
+            } else {
+                this.hideElement('weatherInfo');
+            }
+            
+            // 顯示航班列表
+            flights.forEach((flight, index) => {
                 console.log(`✈️ 航班 ${index + 1}:`, flight);
                 try {
                     const flightCard = this.createFlightCard(flight);
@@ -239,6 +254,66 @@ class FlightSearchApp {
 
         this.showElement('results');
         console.log('✅ 結果顯示完成');
+    }
+
+    // 新增：顯示天氣資訊
+    displayWeatherInfo(weatherInfo) {
+        console.log('🌤️ 顯示天氣資訊:', weatherInfo);
+        
+        // 出發地天氣
+        if (weatherInfo.origin_weather) {
+            const origin = weatherInfo.origin_weather;
+            // 顯示城市名稱和溫度
+            document.getElementById('originTemp').textContent = 
+                `${Math.round(origin.avg_temp)}°C`;
+            document.getElementById('originCondition').textContent = origin.condition;
+            document.getElementById('originHumidity').textContent = origin.humidity;
+            document.getElementById('originWind').textContent = origin.wind_speed;
+            document.getElementById('originRain').textContent = origin.chance_of_rain || 0;
+            
+            // 更新城市名稱顯示
+            const originCityElement = document.querySelector('#originWeather h4');
+            if (originCityElement) {
+                originCityElement.innerHTML = `<i class="fas fa-plane-departure"></i> ${origin.city} 天氣`;
+            }
+            
+            // 設定天氣圖標
+            const originIcon = document.getElementById('originWeatherIcon');
+            if (origin.icon && originIcon) {
+                originIcon.src = `https:${origin.icon}`;
+                originIcon.alt = origin.condition;
+            }
+        }
+
+        // 目的地天氣
+        if (weatherInfo.destination_weather) {
+            const destination = weatherInfo.destination_weather;
+            // 顯示城市名稱和溫度
+            document.getElementById('destinationTemp').textContent = 
+                `${Math.round(destination.avg_temp)}°C`;
+            document.getElementById('destinationCondition').textContent = destination.condition;
+            document.getElementById('destinationHumidity').textContent = destination.humidity;
+            document.getElementById('destinationWind').textContent = destination.wind_speed;
+            document.getElementById('destinationRain').textContent = destination.chance_of_rain || 0;
+            
+            // 更新城市名稱顯示
+            const destinationCityElement = document.querySelector('#destinationWeather h4');
+            if (destinationCityElement) {
+                destinationCityElement.innerHTML = `<i class="fas fa-plane-arrival"></i> ${destination.city} 天氣`;
+            }
+            
+            // 設定天氣圖標
+            const destinationIcon = document.getElementById('destinationWeatherIcon');
+            if (destination.icon && destinationIcon) {
+                destinationIcon.src = `https:${destination.icon}`;
+                destinationIcon.alt = destination.condition;
+            }
+        }
+
+        // 旅行建議
+        if (weatherInfo.travel_advice) {
+            document.getElementById('adviceText').textContent = weatherInfo.travel_advice;
+        }
     }
 
     displayTrackingResults(data) {

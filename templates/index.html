@@ -94,8 +94,60 @@
             <!-- 搜尋結果 -->
             <div id="results" class="results hidden">
                 <h2><i class="fas fa-list"></i> 搜尋結果</h2>
-                <!-- 添加缺失的 resultsCount 元素 -->
                 <div id="resultsCount" class="results-count"></div>
+                
+                <!-- 天氣資訊區塊 -->
+                <div id="weatherInfo" class="weather-info hidden">
+                    <h3><i class="fas fa-cloud-sun"></i> 天氣資訊</h3>
+                    <div class="weather-cards">
+                        <div id="originWeather" class="weather-card">
+                            <h4><i class="fas fa-plane-departure"></i> 出發地天氣</h4>
+                            <div class="weather-content">
+                                <div class="weather-icon">
+                                    <img id="originWeatherIcon" src="" alt="">
+                                </div>
+                                <div class="weather-details">
+                                    <div class="weather-temp">
+                                        <span id="originTemp"></span>
+                                    </div>
+                                    <div class="weather-condition" id="originCondition"></div>
+                                    <div class="weather-extra">
+                                        <span><i class="fas fa-tint"></i> 濕度: <span id="originHumidity"></span>%</span>
+                                        <span><i class="fas fa-wind"></i> 風速: <span id="originWind"></span> km/h</span>
+                                        <span><i class="fas fa-umbrella"></i> 降雨: <span id="originRain"></span>%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="destinationWeather" class="weather-card">
+                            <h4><i class="fas fa-plane-arrival"></i> 目的地天氣</h4>
+                            <div class="weather-content">
+                                <div class="weather-icon">
+                                    <img id="destinationWeatherIcon" src="" alt="">
+                                </div>
+                                <div class="weather-details">
+                                    <div class="weather-temp">
+                                        <span id="destinationTemp"></span>
+                                    </div>
+                                    <div class="weather-condition" id="destinationCondition"></div>
+                                    <div class="weather-extra">
+                                        <span><i class="fas fa-tint"></i> 濕度: <span id="destinationHumidity"></span>%</span>
+                                        <span><i class="fas fa-wind"></i> 風速: <span id="destinationWind"></span> km/h</span>
+                                        <span><i class="fas fa-umbrella"></i> 降雨: <span id="destinationRain"></span>%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 旅行建議 -->
+                    <div id="travelAdvice" class="travel-advice">
+                        <h4><i class="fas fa-lightbulb"></i> 旅行建議</h4>
+                        <p id="adviceText"></p>
+                    </div>
+                </div>
+                <!-- 航班列表 -->
                 <div id="flightsList" class="flights-list"></div>
             </div>
         </div>

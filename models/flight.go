@@ -224,3 +224,244 @@ type RouteInfo struct {
 	Popularity       int               `json:"popularity"` // 1-10
 	SeasonalPatterns []SeasonalPattern `json:"seasonal_patterns,omitempty"`
 }
+
+// 新增：天氣相關模型
+
+// 天氣請求
+type WeatherRequest struct {
+	City    string `json:"city"`
+	Date    string `json:"date"` // 格式: YYYY-MM-DD
+	Airport string `json:"airport,omitempty"`
+}
+
+// 天氣響應
+type WeatherResponse struct {
+	Location struct {
+		Name    string `json:"name"`
+		Country string `json:"country"`
+		Region  string `json:"region"`
+	} `json:"location"`
+	Current struct {
+		TempC     float64 `json:"temp_c"`
+		TempF     float64 `json:"temp_f"`
+		Condition struct {
+			Text string `json:"text"`
+			Icon string `json:"icon"`
+			Code int    `json:"code"`
+		} `json:"condition"`
+		Humidity    int     `json:"humidity"`
+		WindKph     float64 `json:"wind_kph"`
+		WindDir     string  `json:"wind_dir"`
+		FeelsLikeC  float64 `json:"feelslike_c"`
+		FeelsLikeF  float64 `json:"feelslike_f"`
+		UV          float64 `json:"uv"`
+		VisKM       float64 `json:"vis_km"`
+		PrecipMM    float64 `json:"precip_mm"`
+		Cloud       int     `json:"cloud"`
+		LastUpdated string  `json:"last_updated"`
+	} `json:"current"`
+	Forecast struct {
+		Forecastday []ForecastDay `json:"forecastday"`
+	} `json:"forecast"`
+}
+
+// 預報天數
+type ForecastDay struct {
+	Date      string `json:"date"`
+	DateEpoch int64  `json:"date_epoch"`
+	Day       struct {
+		MaxTempC          float64 `json:"maxtemp_c"`
+		MaxTempF          float64 `json:"maxtemp_f"`
+		MinTempC          float64 `json:"mintemp_c"`
+		MinTempF          float64 `json:"mintemp_f"`
+		AvgTempC          float64 `json:"avgtemp_c"`
+		AvgTempF          float64 `json:"avgtemp_f"`
+		MaxWindKph        float64 `json:"maxwind_kph"`
+		TotalPrecipMM     float64 `json:"totalprecip_mm"`
+		AvgVisKM          float64 `json:"avgvis_km"`
+		AvgHumidity       float64 `json:"avghumidity"`
+		DailyWillItRain   int     `json:"daily_will_it_rain"`
+		DailyChanceOfRain int     `json:"daily_chance_of_rain"`
+		DailyWillItSnow   int     `json:"daily_will_it_snow"`
+		DailyChanceOfSnow int     `json:"daily_chance_of_snow"`
+		Condition         struct {
+			Text string `json:"text"`
+			Icon string `json:"icon"`
+			Code int    `json:"code"`
+		} `json:"condition"`
+		UV float64 `json:"uv"`
+	} `json:"day"`
+	Hour []HourlyForecast `json:"hour"`
+}
+
+// 小時預報
+type HourlyForecast struct {
+	TimeEpoch int64   `json:"time_epoch"`
+	Time      string  `json:"time"`
+	TempC     float64 `json:"temp_c"`
+	TempF     float64 `json:"temp_f"`
+	Condition struct {
+		Text string `json:"text"`
+		Icon string `json:"icon"`
+		Code int    `json:"code"`
+	} `json:"condition"`
+	WindKph      float64 `json:"wind_kph"`
+	WindDir      string  `json:"wind_dir"`
+	Humidity     int     `json:"humidity"`
+	Cloud        int     `json:"cloud"`
+	FeelsLikeC   float64 `json:"feelslike_c"`
+	FeelsLikeF   float64 `json:"feelslike_f"`
+	WindchillC   float64 `json:"windchill_c"`
+	WindchillF   float64 `json:"windchill_f"`
+	HeatindexC   float64 `json:"heatindex_c"`
+	HeatindexF   float64 `json:"heatindex_f"`
+	DewpointC    float64 `json:"dewpoint_c"`
+	DewpointF    float64 `json:"dewpoint_f"`
+	WillItRain   int     `json:"will_it_rain"`
+	ChanceOfRain int     `json:"chance_of_rain"`
+	WillItSnow   int     `json:"will_it_snow"`
+	ChanceOfSnow int     `json:"chance_of_snow"`
+	VisKM        float64 `json:"vis_km"`
+	VisMiles     float64 `json:"vis_miles"`
+	GustKph      float64 `json:"gust_kph"`
+	UV           float64 `json:"uv"`
+	ShortRad     float64 `json:"short_rad"`
+	DiffRad      float64 `json:"diff_rad"`
+}
+
+// 航班搜尋響應（包含天氣）
+type FlightSearchResponseWithWeather struct {
+	Flights []Flight     `json:"flights"`
+	Weather *WeatherInfo `json:"weather,omitempty"`
+	Meta    struct {
+		Count         int    `json:"count"`
+		Origin        string `json:"origin"`
+		Destination   string `json:"destination"`
+		DepartureDate string `json:"departure_date"`
+	} `json:"meta"`
+}
+
+// 天氣資訊摘要
+type WeatherInfo struct {
+	OriginWeather      *WeatherSummary `json:"origin_weather,omitempty"`
+	DestinationWeather *WeatherSummary `json:"destination_weather,omitempty"`
+	TravelAdvice       string          `json:"travel_advice,omitempty"`
+}
+
+// 天氣摘要（用於前端顯示）
+type WeatherSummary struct {
+	City         string  `json:"city"`
+	Date         string  `json:"date"`
+	AvgTemp      float64 `json:"avg_temp"` // 平均溫度
+	Condition    string  `json:"condition"`
+	Icon         string  `json:"icon"`
+	Humidity     int     `json:"humidity"`
+	WindSpeed    float64 `json:"wind_speed"` // km/h
+	ChanceOfRain int     `json:"chance_of_rain"`
+	Description  string  `json:"description"`
+}
+
+// 新增：機場代碼到城市名稱的映射
+var AirportCityMap = map[string]string{
+	// 台灣機場
+	"TPE": "Taipei",
+	"TSA": "Taipei",
+	"KHH": "Kaohsiung",
+	"RMQ": "Taichung",
+	"TNN": "Tainan",
+	"KNH": "Kinmen",
+	"LZN": "Matsu",
+
+	// 日本機場
+	"NRT": "Tokyo",
+	"HND": "Tokyo",
+	"KIX": "Osaka",
+	"ITM": "Osaka",
+	"FUK": "Fukuoka",
+	"CTS": "Sapporo",
+	"OKA": "Okinawa",
+
+	// 韓國機場
+	"ICN": "Seoul",
+	"GMP": "Seoul",
+	"PUS": "Busan",
+	"CJU": "Jeju",
+
+	// 中國機場
+	"PEK": "Beijing",
+	"PVG": "Shanghai",
+	"SHA": "Shanghai",
+	"CAN": "Guangzhou",
+	"SZX": "Shenzhen",
+
+	// 香港、澳門
+	"HKG": "Hong Kong",
+	"MFM": "Macau",
+
+	// 東南亞
+	"SIN": "Singapore",
+	"BKK": "Bangkok",
+	"DMK": "Bangkok",
+	"KUL": "Kuala Lumpur",
+	"CGK": "Jakarta",
+	"DPS": "Denpasar",
+	"MNL": "Manila",
+	"CRK": "Manila",
+
+	// 美洲
+	"LAX": "Los Angeles",
+	"SFO": "San Francisco",
+	"JFK": "New York",
+	"ORD": "Chicago",
+	"YYZ": "Toronto",
+	"YVR": "Vancouver",
+
+	// 歐洲
+	"LHR": "London",
+	"CDG": "Paris",
+	"FRA": "Frankfurt",
+	"AMS": "Amsterdam",
+	"FCO": "Rome",
+	"MAD": "Madrid",
+
+	// 大洋洲
+	"SYD": "Sydney",
+	"MEL": "Melbourne",
+	"BNE": "Brisbane",
+	"AKL": "Auckland",
+}
+
+// 新增：機場資訊查詢函數
+func GetCityByAirportCode(airportCode string) string {
+	if city, exists := AirportCityMap[airportCode]; exists {
+		return city
+	}
+	return airportCode // 如果找不到，回傳機場代碼本身
+}
+
+// 新增：機場詳細資訊結構
+type AirportInfo struct {
+	Code      string  `json:"code"`
+	Name      string  `json:"name"`
+	City      string  `json:"city"`
+	Country   string  `json:"country"`
+	Timezone  string  `json:"timezone"`
+	Latitude  float64 `json:"latitude,omitempty"`
+	Longitude float64 `json:"longitude,omitempty"`
+}
+
+// 新增：航班搜尋請求擴展（包含城市資訊）
+type EnhancedSearchRequest struct {
+	SearchRequest
+	OriginCity      string `json:"origin_city,omitempty"`
+	DestinationCity string `json:"destination_city,omitempty"`
+}
+
+// 新增：創建增強搜尋請求
+func CreateEnhancedSearchRequest(req SearchRequest) EnhancedSearchRequest {
+	return EnhancedSearchRequest{
+		SearchRequest:   req,
+		OriginCity:      GetCityByAirportCode(req.Origin),
+		DestinationCity: GetCityByAirportCode(req.Destination),
+	}
+}

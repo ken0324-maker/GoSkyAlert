@@ -11,17 +11,224 @@ import (
 
 type FlightHandler struct {
 	amadeusService *services.AmadeusService
+	weatherService *services.WeatherService // 新增天氣服務
 }
 
-func NewFlightHandler(service *services.AmadeusService) *FlightHandler {
+// 修改構造函數以包含天氣服務
+func NewFlightHandler(flightService *services.AmadeusService, weatherService *services.WeatherService) *FlightHandler {
 	return &FlightHandler{
-		amadeusService: service,
+		amadeusService: flightService,
+		weatherService: weatherService,
 	}
 }
 
 // 新增：首頁處理
 func (h *FlightHandler) Index(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "templates/index.html")
+}
+
+// 修改航班搜尋功能以包含天氣資訊
+func (h *FlightHandler) SearchFlights(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error": "方法不允許"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	query := r.URL.Query()
+
+	req := models.SearchRequest{
+		Origin:        query.Get("origin"),
+		Destination:   query.Get("destination"),
+		DepartureDate: query.Get("departure_date"),
+		ReturnDate:    query.Get("return_date"),
+		Currency:      query.Get("currency"),
+		Adults:        1,
+	}
+
+	if req.Origin == "" || req.Destination == "" || req.DepartureDate == "" {
+		http.Error(w, `{"error": "缺少必要參數: origin, destination, departure_date"}`, http.StatusBadRequest)
+		return
+	}
+
+	if req.Currency == "" {
+		req.Currency = "TWD"
+	}
+	if adultsStr := query.Get("adults"); adultsStr != "" {
+		if adults, err := strconv.Atoi(adultsStr); err == nil && adults > 0 {
+			req.Adults = adults
+		}
+	}
+
+	// 搜尋航班
+	flights, err := h.amadeusService.SearchFlights(req)
+	if err != nil {
+		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// 新增：獲取天氣資訊
+	var weatherInfo *models.WeatherInfo
+	if h.weatherService != nil {
+		weatherInfo = h.getWeatherInfo(req.Origin, req.Destination, req.DepartureDate)
+	}
+
+	// 修改響應以包含天氣資訊
+	response := models.FlightSearchResponseWithWeather{
+		Flights: flights,
+		Weather: weatherInfo,
+		Meta: struct {
+			Count         int    `json:"count"`
+			Origin        string `json:"origin"`
+			Destination   string `json:"destination"`
+			DepartureDate string `json:"departure_date"`
+		}{
+			Count:         len(flights),
+			Origin:        req.Origin,
+			Destination:   req.Destination,
+			DepartureDate: req.DepartureDate,
+		},
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// 新增：獲取天氣資訊的輔助函數
+func (h *FlightHandler) getWeatherInfo(origin, destination, date string) *models.WeatherInfo {
+	if h.weatherService == nil {
+		return nil
+	}
+
+	var originWeather, destWeather *models.WeatherSummary
+
+	// 獲取出發地天氣
+	originCity := models.GetCityByAirportCode(origin)
+	if originCity != "" {
+		if weather, err := h.weatherService.GetWeather(originCity, date); err == nil {
+			originWeather = h.createWeatherSummary(weather, originCity, date)
+		}
+	}
+
+	// 獲取目的地天氣
+	destCity := models.GetCityByAirportCode(destination)
+	if destCity != "" {
+		if weather, err := h.weatherService.GetWeather(destCity, date); err == nil {
+			destWeather = h.createWeatherSummary(weather, destCity, date)
+		}
+	}
+
+	// 生成旅行建議
+	travelAdvice := h.generateTravelAdvice(originWeather, destWeather)
+
+	return &models.WeatherInfo{
+		OriginWeather:      originWeather,
+		DestinationWeather: destWeather,
+		TravelAdvice:       travelAdvice,
+	}
+}
+
+// 新增：創建天氣摘要
+func (h *FlightHandler) createWeatherSummary(weather *models.WeatherResponse, city, date string) *models.WeatherSummary {
+	if weather == nil {
+		return nil
+	}
+
+	// 嘗試找到指定日期的預報
+	var forecastDay *models.ForecastDay
+	for i := range weather.Forecast.Forecastday {
+		if weather.Forecast.Forecastday[i].Date == date {
+			forecastDay = &weather.Forecast.Forecastday[i]
+			break
+		}
+	}
+
+	summary := &models.WeatherSummary{
+		City:      city, // 顯示城市名稱
+		Date:      date,
+		AvgTemp:   weather.Current.TempC,
+		Condition: weather.Current.Condition.Text,
+		Icon:      weather.Current.Condition.Icon,
+		Humidity:  weather.Current.Humidity,
+		WindSpeed: weather.Current.WindKph,
+	}
+
+	// 如果有預報數據，使用預報數據
+	if forecastDay != nil {
+		summary.AvgTemp = forecastDay.Day.AvgTempC
+		summary.Condition = forecastDay.Day.Condition.Text
+		summary.Icon = forecastDay.Day.Condition.Icon
+		summary.ChanceOfRain = forecastDay.Day.DailyChanceOfRain
+	}
+
+	return summary
+}
+
+// 新增：生成天氣描述
+func (h *FlightHandler) getWeatherDescription(condition string, tempC float64, chanceOfRain int) string {
+	description := condition
+
+	if tempC < 10 {
+		description += "，天氣寒冷，請準備保暖衣物"
+	} else if tempC > 30 {
+		description += "，天氣炎熱，建議穿著輕便"
+	} else if tempC >= 10 && tempC <= 25 {
+		description += "，天氣舒適宜人"
+	}
+
+	if chanceOfRain > 50 {
+		description += "，降雨機率高，請攜帶雨具"
+	} else if chanceOfRain > 20 {
+		description += "，可能有降雨，建議攜帶雨具"
+	}
+
+	return description
+}
+
+// 新增：生成旅行建議
+// 新增：生成旅行建議
+func (h *FlightHandler) generateTravelAdvice(origin, destination *models.WeatherSummary) string {
+	if origin == nil || destination == nil {
+		return "天氣資訊不足，請確認航班資訊"
+	}
+
+	advice := "旅行建議："
+
+	// 出發地建議
+	if origin.ChanceOfRain > 50 {
+		advice += "出發地降雨機率高，建議提早出發並攜帶雨具。"
+	} else if origin.AvgTemp < 10 { // 使用 AvgTemp 替代 Temperature
+		advice += "出發地氣溫較低，請注意保暖。"
+	} else if origin.AvgTemp > 30 { // 使用 AvgTemp 替代 Temperature
+		advice += "出發地氣溫較高，建議穿著輕便。"
+	}
+
+	// 目的地建議
+	if destination.ChanceOfRain > 50 {
+		advice += " 目的地降雨機率高，建議準備室內活動方案。"
+	} else if destination.AvgTemp > 30 { // 使用 AvgTemp 替代 Temperature
+		advice += " 目的地氣溫較高，請注意防曬和補充水分。"
+	} else if destination.AvgTemp < 5 { // 使用 AvgTemp 替代 Temperature
+		advice += " 目的地氣溫很低，請準備厚重保暖衣物。"
+	} else if destination.AvgTemp >= 15 && destination.AvgTemp <= 25 { // 使用 AvgTemp 替代 Temperature
+		advice += " 目的地天氣宜人，適合旅遊。"
+	} else {
+		advice += " 目的地天氣狀況良好。"
+	}
+
+	// 溫差建議
+	tempDiff := destination.AvgTemp - origin.AvgTemp // 使用 AvgTemp 替代 Temperature
+	if tempDiff > 10 {
+		advice += " 目的地比出發地溫暖許多，建議準備夏季衣物。"
+	} else if tempDiff < -10 {
+		advice += " 目的地比出發地寒冷許多，請準備足夠的保暖衣物。"
+	}
+
+	return advice
 }
 
 // 新增：機票價格追蹤API
@@ -186,61 +393,6 @@ func (h *FlightHandler) CreatePriceAlert(w http.ResponseWriter, r *http.Request)
 	})
 }
 
-// 原有的航班搜尋功能
-func (h *FlightHandler) SearchFlights(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	if r.Method != http.MethodGet {
-		http.Error(w, `{"error": "方法不允許"}`, http.StatusMethodNotAllowed)
-		return
-	}
-
-	query := r.URL.Query()
-
-	req := models.SearchRequest{
-		Origin:        query.Get("origin"),
-		Destination:   query.Get("destination"),
-		DepartureDate: query.Get("departure_date"),
-		ReturnDate:    query.Get("return_date"),
-		Currency:      query.Get("currency"),
-		Adults:        1,
-	}
-
-	if req.Origin == "" || req.Destination == "" || req.DepartureDate == "" {
-		http.Error(w, `{"error": "缺少必要參數: origin, destination, departure_date"}`, http.StatusBadRequest)
-		return
-	}
-
-	if req.Currency == "" {
-		req.Currency = "TWD"
-	}
-	if adultsStr := query.Get("adults"); adultsStr != "" {
-		if adults, err := strconv.Atoi(adultsStr); err == nil && adults > 0 {
-			req.Adults = adults
-		}
-	}
-
-	flights, err := h.amadeusService.SearchFlights(req)
-	if err != nil {
-		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
-		return
-	}
-
-	response := map[string]interface{}{
-		"success": true,
-		"data":    flights,
-		"count":   len(flights),
-		"meta": map[string]interface{}{
-			"origin":      req.Origin,
-			"destination": req.Destination,
-			"date":        req.DepartureDate,
-		},
-	}
-
-	json.NewEncoder(w).Encode(response)
-}
-
 func (h *FlightHandler) SearchAirports(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -270,10 +422,23 @@ func (h *FlightHandler) SearchAirports(w http.ResponseWriter, r *http.Request) {
 
 func (h *FlightHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "healthy",
-		"service": "amadeus-flight-api",
-		"version": "1.0.0",
+
+	status := "healthy"
+	services := map[string]string{
+		"amadeus": "connected",
+		"weather": "connected",
+	}
+
+	if h.weatherService == nil {
+		services["weather"] = "disabled"
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":    status,
+		"service":   "flight-api",
+		"version":   "1.0.0",
+		"services":  services,
+		"timestamp": time.Now().Format(time.RFC3339),
 	})
 }
 
@@ -283,12 +448,18 @@ func (h *FlightHandler) APIDocs(w http.ResponseWriter, r *http.Request) {
 
 	docs := map[string]interface{}{
 		"service": "航班價格追蹤 API",
-		"version": "1.0.0",
+		"version": "1.1.0",
+		"features": []string{
+			"即時航班搜尋",
+			"價格趨勢追蹤",
+			"天氣資訊整合",
+			"價格警報設定",
+		},
 		"endpoints": []map[string]string{
 			{
 				"method":      "GET",
 				"path":        "/api/flights/search",
-				"description": "搜尋即時航班",
+				"description": "搜尋即時航班（包含天氣資訊）",
 				"parameters":  "origin, destination, departure_date, [return_date, adults, currency]",
 			},
 			{
@@ -314,6 +485,12 @@ func (h *FlightHandler) APIDocs(w http.ResponseWriter, r *http.Request) {
 				"path":        "/api/alerts/create",
 				"description": "創建價格警報",
 				"parameters":  "route, target_price",
+			},
+			{
+				"method":      "GET",
+				"path":        "/health",
+				"description": "服務健康檢查",
+				"parameters":  "無",
 			},
 		},
 	}
