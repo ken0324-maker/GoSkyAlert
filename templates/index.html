@@ -23,10 +23,14 @@
             <button class="nav-tab" data-tab="tracking">
                 <i class="fas fa-chart-line"></i> 價格追蹤
             </button>
+            <button class="nav-tab" data-tab="currency">
+                <i class="fas fa-calculator"></i> 匯率計算機
+            </button>
         </div>
 
         <!-- 即時搜尋頁面 -->
         <div id="searchTab" class="tab-content active">
+            <!-- 現有的搜尋表單和結果保持不變 -->
             <div class="search-card">
                 <form id="searchForm" class="search-form">
                     <div class="form-row">
@@ -68,7 +72,13 @@
                             <select id="currency" name="currency">
                                 <option value="TWD">新台幣 (TWD)</option>
                                 <option value="USD">美元 (USD)</option>
+                                <option value="EUR">歐元 (EUR)</option>
                                 <option value="JPY">日圓 (JPY)</option>
+                                <option value="GBP">英鎊 (GBP)</option>
+                                <option value="CNY">人民幣 (CNY)</option>
+                                <option value="KRW">韓元 (KRW)</option>
+                                <option value="HKD">港幣 (HKD)</option>
+                                <option value="SGD">新加坡元 (SGD)</option>
                             </select>
                         </div>
                     </div>
@@ -147,6 +157,23 @@
                         <p id="adviceText"></p>
                     </div>
                 </div>
+
+                <!-- 匯率資訊區塊 -->
+                <div id="exchangeInfo" class="exchange-info hidden">
+                    <h3><i class="fas fa-money-bill-wave"></i> 即時匯率</h3>
+                    <div class="exchange-cards">
+                        <div class="exchange-base">
+                            <h4>基礎貨幣: <span id="baseCurrency">TWD</span></h4>
+                            <div class="exchange-update-time">
+                                最後更新: <span id="exchangeLastUpdated">--</span>
+                            </div>
+                        </div>
+                        <div id="exchangeRates" class="exchange-rates">
+                            <!-- 匯率卡片會在這裡動態生成 -->
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 航班列表 -->
                 <div id="flightsList" class="flights-list"></div>
             </div>
@@ -154,6 +181,7 @@
 
         <!-- 價格追蹤頁面 -->
         <div id="trackingTab" class="tab-content">
+            <!-- 現有的價格追蹤表單和結果保持不變 -->
             <div class="search-card">
                 <form id="trackingForm" class="search-form">
                     <div class="form-row">
@@ -208,8 +236,111 @@
             <!-- 追蹤結果 -->
             <div id="trackingResults" class="tracking-results hidden"></div>
         </div>
-    </div>
 
+        <!-- 新增：匯率計算機頁面 -->
+        <div id="currencyTab" class="tab-content">
+            <div class="search-card">
+                <div class="currency-calculator">
+                    <h2><i class="fas fa-calculator"></i> 匯率計算機</h2>
+                    <p class="calculator-description">使用即時匯率進行貨幣轉換計算</p>
+                    
+                    <div class="calculator-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="calcAmount"><i class="fas fa-money-bill-wave"></i> 金額</label>
+                                <input type="number" id="calcAmount" placeholder="輸入要轉換的金額" value="1000" min="0" step="0.01">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="calcFromCurrency"><i class="fas fa-arrow-right"></i> 從貨幣</label>
+                                <select id="calcFromCurrency">
+                                    <option value="TWD">新台幣 (TWD)</option>
+                                    <option value="USD">美元 (USD)</option>
+                                    <option value="EUR">歐元 (EUR)</option>
+                                    <option value="JPY">日圓 (JPY)</option>
+                                    <option value="GBP">英鎊 (GBP)</option>
+                                    <option value="CNY">人民幣 (CNY)</option>
+                                    <option value="KRW">韓元 (KRW)</option>
+                                    <option value="HKD">港幣 (HKD)</option>
+                                    <option value="SGD">新加坡元 (SGD)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <button type="button" id="swapCurrencies" class="swap-btn" title="交換貨幣">
+                                    <i class="fas fa-exchange-alt"></i>
+                                </button>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="calcToCurrency"><i class="fas fa-arrow-right"></i> 轉換為</label>
+                                <select id="calcToCurrency">
+                                    <option value="USD">美元 (USD)</option>
+                                    <option value="EUR">歐元 (EUR)</option>
+                                    <option value="JPY">日圓 (JPY)</option>
+                                    <option value="GBP">英鎊 (GBP)</option>
+                                    <option value="CNY">人民幣 (CNY)</option>
+                                    <option value="KRW">韓元 (KRW)</option>
+                                    <option value="HKD">港幣 (HKD)</option>
+                                    <option value="SGD">新加坡元 (SGD)</option>
+                                    <option value="TWD">新台幣 (TWD)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button type="button" id="calculateBtn" class="calculate-btn">
+                            <i class="fas fa-sync-alt"></i> 立即計算
+                        </button>
+                    </div>
+
+                    <!-- 計算結果 -->
+                    <div id="calcResult" class="calc-result hidden">
+                        <h3><i class="fas fa-chart-line"></i> 轉換結果</h3>
+                        <div class="result-content">
+                            <div class="conversion-display">
+                                <div class="original-amount">
+                                    <span id="originalAmountDisplay">0</span>
+                                    <span id="fromCurrencyDisplay">TWD</span>
+                                </div>
+                                <div class="conversion-arrow">
+                                    <i class="fas fa-long-arrow-alt-down"></i>
+                                </div>
+                                <div class="converted-amount">
+                                    <span id="convertedAmountDisplay">0</span>
+                                    <span id="toCurrencyDisplay">USD</span>
+                                </div>
+                            </div>
+                            <div class="exchange-rate-info">
+                                <div class="rate-display">
+                                    <strong>匯率:</strong>
+                                    <span id="exchangeRateDisplay">1 TWD = 0.0000 USD</span>
+                                </div>
+                                <div class="rate-display">
+                                    <strong>反向匯率:</strong>
+                                    <span id="reverseRateDisplay">1 USD = 0.0000 TWD</span>
+                                </div>
+                                <div class="update-time">
+                                    <i class="fas fa-clock"></i>
+                                    最後更新: <span id="calcLastUpdated">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 即時匯率表格 -->
+                    <div id="liveRates" class="live-rates hidden">
+                        <h3><i class="fas fa-list"></i> 即時匯率參考</h3>
+                        <div id="ratesTable" class="rates-table">
+                            <!-- 匯率表格會在這裡動態生成 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <script src="/static/js/app.js"></script>
 </body>
 </html>

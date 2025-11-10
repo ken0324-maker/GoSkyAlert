@@ -465,3 +465,44 @@ func CreateEnhancedSearchRequest(req SearchRequest) EnhancedSearchRequest {
 		DestinationCity: GetCityByAirportCode(req.Destination),
 	}
 }
+
+// 新增：匯率相關模型
+
+// 匯率資訊
+type ExchangeRateInfo struct {
+	BaseCurrency string             `json:"base_currency"`
+	Rates        map[string]float64 `json:"rates"`
+	LastUpdated  time.Time          `json:"last_updated"`
+	NextUpdate   time.Time          `json:"next_update"`
+}
+
+// 航班搜尋響應（包含天氣和匯率）
+type FlightSearchResponseWithWeatherAndExchange struct {
+	Flights  []Flight          `json:"flights"`
+	Weather  *WeatherInfo      `json:"weather,omitempty"`
+	Exchange *ExchangeRateInfo `json:"exchange,omitempty"`
+	Meta     struct {
+		Count         int    `json:"count"`
+		Origin        string `json:"origin"`
+		Destination   string `json:"destination"`
+		DepartureDate string `json:"departure_date"`
+		Currency      string `json:"currency"`
+	} `json:"meta"`
+}
+
+// 貨幣轉換請求
+type CurrencyConversionRequest struct {
+	Amount       float64 `json:"amount"`
+	FromCurrency string  `json:"from_currency"`
+	ToCurrency   string  `json:"to_currency"`
+}
+
+// 貨幣轉換響應
+type CurrencyConversionResponse struct {
+	OriginalAmount  float64   `json:"original_amount"`
+	ConvertedAmount float64   `json:"converted_amount"`
+	FromCurrency    string    `json:"from_currency"`
+	ToCurrency      string    `json:"to_currency"`
+	ExchangeRate    float64   `json:"exchange_rate"`
+	LastUpdated     time.Time `json:"last_updated"`
+}

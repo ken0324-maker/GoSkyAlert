@@ -440,19 +440,28 @@ func (s *AmadeusService) getAdvanceDiscount(week, totalWeeks int) float64 {
 }
 
 // 新增：計算價格統計數據
+// 修改：修復最佳日期計算邏輯
 func (s *AmadeusService) calculatePriceStatistics(analysis *models.PriceAnalysis) {
 	if len(analysis.DataPoints) == 0 {
 		return
 	}
 
+	// 初始化為第一個數據點的值
 	minPrice := analysis.DataPoints[0].Price
 	maxPrice := analysis.DataPoints[0].Price
 	sum := 0.0
+	bestDate := analysis.DataPoints[0].Date // 初始化最佳日期
+
+	log.Printf("📊 開始計算價格統計，共 %d 個數據點", len(analysis.DataPoints))
 
 	for _, point := range analysis.DataPoints {
+		log.Printf("   📅 第 %d 週: 日期=%s, 價格=$%.0f",
+			point.Week, point.Date.Format("2006-01-02"), point.Price)
+
 		if point.Price < minPrice {
 			minPrice = point.Price
-			analysis.BestDate = point.Date
+			bestDate = point.Date // 更新最佳日期
+			log.Printf("   🎯 發現新的最低價格: $%.0f, 日期: %s", minPrice, bestDate.Format("2006-01-02"))
 		}
 		if point.Price > maxPrice {
 			maxPrice = point.Price
@@ -463,7 +472,15 @@ func (s *AmadeusService) calculatePriceStatistics(analysis *models.PriceAnalysis
 	analysis.MinPrice = minPrice
 	analysis.MaxPrice = maxPrice
 	analysis.AvgPrice = sum / float64(len(analysis.DataPoints))
+	analysis.BestDate = bestDate // 設置最佳日期
 	analysis.Recommendation = s.generateRecommendation(analysis)
+
+	log.Printf("✅ 統計計算完成:")
+	log.Printf("   📈 最低價格: $%.0f", analysis.MinPrice)
+	log.Printf("   📈 最高價格: $%.0f", analysis.MaxPrice)
+	log.Printf("   📊 平均價格: $%.0f", analysis.AvgPrice)
+	log.Printf("   🎯 最佳出發日期: %s", analysis.BestDate.Format("2006-01-02"))
+	log.Printf("   💡 推薦建議: %s", analysis.Recommendation)
 }
 
 // 新增：生成推薦建議

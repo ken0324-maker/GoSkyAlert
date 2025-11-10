@@ -6,24 +6,26 @@ import (
 )
 
 type Config struct {
-	AmadeusAPIKey    string
-	AmadeusAPISecret string
-	AmadeusBaseURL   string
-	WeatherAPIKey    string // 新增 WeatherAPI 金鑰
-	ServerPort       string
-	Environment      string
-	LogLevel         string
+	AmadeusAPIKey      string
+	AmadeusAPISecret   string
+	AmadeusBaseURL     string
+	WeatherAPIKey      string // 新增 WeatherAPI 金鑰
+	ExchangeRateAPIKey string // 新增匯率 API 金鑰
+	ServerPort         string
+	Environment        string
+	LogLevel           string
 }
 
 func LoadConfig() *Config {
 	return &Config{
-		AmadeusAPIKey:    getEnv("AMADEUS_API_KEY", ""),
-		AmadeusAPISecret: getEnv("AMADEUS_API_SECRET", ""),
-		AmadeusBaseURL:   getEnv("AMADEUS_BASE_URL", "https://test.api.amadeus.com/v2"),
-		WeatherAPIKey:    getEnv("WEATHER_API_KEY", ""), // 新增 WeatherAPI 配置
-		ServerPort:       getEnv("PORT", "8080"),
-		Environment:      getEnv("ENVIRONMENT", "development"),
-		LogLevel:         getEnv("LOG_LEVEL", "info"),
+		AmadeusAPIKey:      getEnv("AMADEUS_API_KEY", ""),
+		AmadeusAPISecret:   getEnv("AMADEUS_API_SECRET", ""),
+		AmadeusBaseURL:     getEnv("AMADEUS_BASE_URL", "https://test.api.amadeus.com/v2"),
+		WeatherAPIKey:      getEnv("WEATHER_API_KEY", ""),       // 新增 WeatherAPI 配置
+		ExchangeRateAPIKey: getEnv("EXCHANGE_RATE_API_KEY", ""), // 新增匯率 API 配置
+		ServerPort:         getEnv("PORT", "8080"),
+		Environment:        getEnv("ENVIRONMENT", "development"),
+		LogLevel:           getEnv("LOG_LEVEL", "info"),
 	}
 }
 
@@ -77,4 +79,9 @@ func (c *Config) GetServerAddress() string {
 // 新增：檢查是否啟用天氣功能
 func (c *Config) HasWeatherAPI() bool {
 	return c.WeatherAPIKey != ""
+}
+
+// 新增：檢查是否啟用匯率功能
+func (c *Config) HasExchangeRateAPI() bool {
+	return c.ExchangeRateAPIKey != ""
 }

@@ -4,6 +4,7 @@ class FlightSearchApp {
         this.initEventListeners();
         this.setDefaultDates();
         this.showTab('search');
+        this.initCurrencyCalculator(); // 初始化匯率計算機
     }
 
     initEventListeners() {
@@ -196,9 +197,10 @@ class FlightSearchApp {
         const countDiv = document.getElementById('resultsCount');
         const flightsDiv = document.getElementById('flightsList');
         const weatherDiv = document.getElementById('weatherInfo');
+        const exchangeDiv = document.getElementById('exchangeInfo');
 
         // 檢查元素是否存在
-        if (!resultsDiv || !countDiv || !flightsDiv || !weatherDiv) {
+        if (!resultsDiv || !countDiv || !flightsDiv || !weatherDiv || !exchangeDiv) {
             console.error('❌ 找不到必要的DOM元素');
             return;
         }
@@ -215,6 +217,7 @@ class FlightSearchApp {
                 </div>
             `;
             this.hideElement('weatherInfo');
+            this.hideElement('exchangeInfo');
         } else if (!data.data || !data.data.flights || data.data.flights.length === 0) {
             countDiv.textContent = '找到 0 個航班';
             flightsDiv.innerHTML = `
@@ -225,9 +228,11 @@ class FlightSearchApp {
                 </div>
             `;
             this.hideElement('weatherInfo');
+            this.hideElement('exchangeInfo');
         } else {
             const flights = data.data.flights;
             const weatherInfo = data.data.weather;
+            const exchangeInfo = data.data.exchange;
             
             countDiv.textContent = `找到 ${data.data.meta?.count || flights.length} 個航班`;
             console.log(`📈 顯示 ${flights.length} 個航班`);
@@ -238,6 +243,14 @@ class FlightSearchApp {
                 this.showElement('weatherInfo');
             } else {
                 this.hideElement('weatherInfo');
+            }
+
+            // 顯示匯率資訊
+            if (exchangeInfo) {
+                this.displayExchangeInfo(exchangeInfo);
+                this.showElement('exchangeInfo');
+            } else {
+                this.hideElement('exchangeInfo');
             }
             
             // 顯示航班列表
@@ -256,16 +269,14 @@ class FlightSearchApp {
         console.log('✅ 結果顯示完成');
     }
 
-    // 新增：顯示天氣資訊
+    // 顯示天氣資訊
     displayWeatherInfo(weatherInfo) {
         console.log('🌤️ 顯示天氣資訊:', weatherInfo);
         
         // 出發地天氣
         if (weatherInfo.origin_weather) {
             const origin = weatherInfo.origin_weather;
-            // 顯示城市名稱和溫度
-            document.getElementById('originTemp').textContent = 
-                `${Math.round(origin.avg_temp)}°C`;
+            document.getElementById('originTemp').textContent = `${Math.round(origin.avg_temp)}°C`;
             document.getElementById('originCondition').textContent = origin.condition;
             document.getElementById('originHumidity').textContent = origin.humidity;
             document.getElementById('originWind').textContent = origin.wind_speed;
@@ -288,9 +299,7 @@ class FlightSearchApp {
         // 目的地天氣
         if (weatherInfo.destination_weather) {
             const destination = weatherInfo.destination_weather;
-            // 顯示城市名稱和溫度
-            document.getElementById('destinationTemp').textContent = 
-                `${Math.round(destination.avg_temp)}°C`;
+            document.getElementById('destinationTemp').textContent = `${Math.round(destination.avg_temp)}°C`;
             document.getElementById('destinationCondition').textContent = destination.condition;
             document.getElementById('destinationHumidity').textContent = destination.humidity;
             document.getElementById('destinationWind').textContent = destination.wind_speed;
@@ -313,6 +322,285 @@ class FlightSearchApp {
         // 旅行建議
         if (weatherInfo.travel_advice) {
             document.getElementById('adviceText').textContent = weatherInfo.travel_advice;
+        }
+    }
+
+    // 顯示匯率資訊
+    displayExchangeInfo(exchangeInfo) {
+        console.log('💱 顯示匯率資訊:', exchangeInfo);
+        
+        // 顯示基礎貨幣
+        document.getElementById('baseCurrency').textContent = exchangeInfo.base_currency;
+        
+        // 顯示更新時間
+        const lastUpdated = new Date(exchangeInfo.last_updated).toLocaleString('zh-TW');
+        document.getElementById('exchangeLastUpdated').textContent = lastUpdated;
+        
+        // 顯示匯率卡片
+        const ratesContainer = document.getElementById('exchangeRates');
+        ratesContainer.innerHTML = '';
+        
+        Object.entries(exchangeInfo.rates).forEach(([currency, rate]) => {
+            const currencyNames = {
+                'USD': '美元', 'EUR': '歐元', 'JPY': '日圓', 'GBP': '英鎊',
+                'CNY': '人民幣', 'KRW': '韓元', 'HKD': '港幣', 'SGD': '新加坡元',
+                'TWD': '新台幣'
+            };
+            
+            const rateCard = document.createElement('div');
+            rateCard.className = 'exchange-rate-card';
+            rateCard.innerHTML = `
+                <div class="currency-code">${currency}</div>
+                <div class="currency-rate">${rate.toFixed(4)}</div>
+                <div class="currency-name">${currencyNames[currency] || currency}</div>
+            `;
+            ratesContainer.appendChild(rateCard);
+        });
+        
+        // 初始化貨幣轉換工具
+        this.initCurrencyConverter();
+    }
+
+    // 初始化貨幣轉換工具
+    initCurrencyConverter() {
+        const convertBtn = document.getElementById('convertBtn');
+        if (convertBtn) {
+            convertBtn.addEventListener('click', () => this.handleCurrencyConversion());
+        }
+        
+        // 也支援 Enter 鍵轉換
+        const amountInput = document.getElementById('convertAmount');
+        if (amountInput) {
+            amountInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.handleCurrencyConversion();
+                }
+            });
+        }
+    }
+
+    // 處理貨幣轉換
+    async handleCurrencyConversion() {
+        const amount = parseFloat(document.getElementById('convertAmount').value);
+        const fromCurrency = document.getElementById('convertFrom').value;
+        const toCurrency = document.getElementById('convertTo').value;
+        const resultDiv = document.getElementById('conversionResult');
+        
+        if (!amount || amount <= 0) {
+            resultDiv.innerHTML = '<span style="color: #ff6b6b;">請輸入有效的金額</span>';
+            return;
+        }
+        
+        if (fromCurrency === toCurrency) {
+            resultDiv.innerHTML = '<span style="color: #ff6b6b;">請選擇不同的貨幣</span>';
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/currency/convert', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    amount: amount,
+                    from_currency: fromCurrency,
+                    to_currency: toCurrency
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                const result = data.data;
+                resultDiv.innerHTML = `
+                    <div style="font-size: 1.1em;">
+                        ${this.formatPrice(result.original_amount)} ${result.from_currency} = 
+                        <span style="color: #ffeb3b; font-size: 1.2em;">
+                            ${this.formatPrice(result.converted_amount)} ${result.to_currency}
+                        </span>
+                    </div>
+                    <div style="font-size: 0.9em; opacity: 0.8; margin-top: 5px;">
+                        匯率: 1 ${result.from_currency} = ${result.exchange_rate.toFixed(4)} ${result.to_currency}
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `<span style="color: #ff6b6b;">轉換失敗: ${data.error}</span>`;
+            }
+        } catch (error) {
+            console.error('貨幣轉換錯誤:', error);
+            resultDiv.innerHTML = '<span style="color: #ff6b6b;">轉換服務暫時不可用</span>';
+        }
+    }
+
+    // 新增：初始化匯率計算機
+    initCurrencyCalculator() {
+        const calculateBtn = document.getElementById('calculateBtn');
+        const swapBtn = document.getElementById('swapCurrencies');
+        const amountInput = document.getElementById('calcAmount');
+
+        if (calculateBtn) {
+            calculateBtn.addEventListener('click', () => this.handleCurrencyCalculation());
+        }
+
+        if (swapBtn) {
+            swapBtn.addEventListener('click', () => this.swapCurrencies());
+        }
+
+        if (amountInput) {
+            amountInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.handleCurrencyCalculation();
+                }
+            });
+
+            // 實時計算
+            amountInput.addEventListener('input', () => {
+                if (amountInput.value) {
+                    this.handleCurrencyCalculation();
+                }
+            });
+        }
+
+        // 當貨幣選擇改變時自動計算
+        const fromSelect = document.getElementById('calcFromCurrency');
+        const toSelect = document.getElementById('calcToCurrency');
+        
+        if (fromSelect) {
+            fromSelect.addEventListener('change', () => {
+                if (amountInput.value) {
+                    this.handleCurrencyCalculation();
+                }
+            });
+        }
+
+        if (toSelect) {
+            toSelect.addEventListener('change', () => {
+                if (amountInput.value) {
+                    this.handleCurrencyCalculation();
+                }
+            });
+        }
+
+        // 載入時顯示即時匯率
+        this.loadLiveRates();
+    }
+
+    // 新增：交換貨幣
+    swapCurrencies() {
+        const fromSelect = document.getElementById('calcFromCurrency');
+        const toSelect = document.getElementById('calcToCurrency');
+        
+        const fromValue = fromSelect.value;
+        const toValue = toSelect.value;
+        
+        fromSelect.value = toValue;
+        toSelect.value = fromValue;
+        
+        // 如果金額不為空，重新計算
+        const amountInput = document.getElementById('calcAmount');
+        if (amountInput.value) {
+            this.handleCurrencyCalculation();
+        }
+    }
+
+    // 新增：處理貨幣計算
+    async handleCurrencyCalculation() {
+        const amount = parseFloat(document.getElementById('calcAmount').value);
+        const fromCurrency = document.getElementById('calcFromCurrency').value;
+        const toCurrency = document.getElementById('calcToCurrency').value;
+        const resultDiv = document.getElementById('calcResult');
+        
+        if (!amount || amount <= 0) {
+            this.hideElement('calcResult');
+            return;
+        }
+        
+        if (fromCurrency === toCurrency) {
+            resultDiv.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: #666;">
+                    <i class="fas fa-info-circle" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                    <p>請選擇不同的貨幣進行轉換</p>
+                </div>
+            `;
+            this.showElement('calcResult');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/currency/convert', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    amount: amount,
+                    from_currency: fromCurrency,
+                    to_currency: toCurrency
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                const result = data.data;
+                this.displayCalculationResult(result);
+                this.showElement('calcResult');
+            } else {
+                this.showCalculationError(data.error || '轉換失敗');
+            }
+        } catch (error) {
+            console.error('貨幣計算錯誤:', error);
+            this.showCalculationError('轉換服務暫時不可用');
+        }
+    }
+
+    // 新增：顯示計算結果
+    displayCalculationResult(result) {
+        document.getElementById('originalAmountDisplay').textContent = 
+            this.formatPrice(result.original_amount);
+        document.getElementById('fromCurrencyDisplay').textContent = result.from_currency;
+        document.getElementById('convertedAmountDisplay').textContent = 
+            this.formatPrice(result.converted_amount);
+        document.getElementById('toCurrencyDisplay').textContent = result.to_currency;
+        
+        // 顯示匯率
+        document.getElementById('exchangeRateDisplay').textContent = 
+            `1 ${result.from_currency} = ${result.exchange_rate.toFixed(6)} ${result.to_currency}`;
+        
+        // 顯示反向匯率
+        const reverseRate = 1 / result.exchange_rate;
+        document.getElementById('reverseRateDisplay').textContent = 
+            `1 ${result.to_currency} = ${reverseRate.toFixed(6)} ${result.from_currency}`;
+        
+        // 顯示更新時間
+        const lastUpdated = new Date(result.last_updated).toLocaleString('zh-TW');
+        document.getElementById('calcLastUpdated').textContent = lastUpdated;
+    }
+
+    // 新增：顯示計算錯誤
+    showCalculationError(message) {
+        const resultDiv = document.getElementById('calcResult');
+        resultDiv.innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #dc3545;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                <p>${message}</p>
+            </div>
+        `;
+        this.showElement('calcResult');
+    }
+
+    // 新增：載入即時匯率
+    async loadLiveRates() {
+        try {
+            const baseCurrency = 'TWD'; // 使用 TWD 作為基礎貨幣
+            const targetCurrencies = ['USD', 'EUR', 'JPY', 'GBP', 'CNY', 'KRW', 'HKD', 'SGD'];
+            
+            // 這裡可以呼叫 API 獲取即時匯率並顯示在表格中
+            console.log('載入即時匯率資料...');
+            
+        } catch (error) {
+            console.error('載入即時匯率失敗:', error);
         }
     }
 

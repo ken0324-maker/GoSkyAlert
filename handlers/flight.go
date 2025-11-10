@@ -10,15 +10,18 @@ import (
 )
 
 type FlightHandler struct {
-	amadeusService *services.AmadeusService
-	weatherService *services.WeatherService // 新增天氣服務
+	amadeusService  *services.AmadeusService
+	weatherService  *services.WeatherService  // 新增天氣服務
+	exchangeService *services.ExchangeService // 新增匯率服務
 }
 
 // 修改構造函數以包含天氣服務
-func NewFlightHandler(flightService *services.AmadeusService, weatherService *services.WeatherService) *FlightHandler {
+// 修改構造函數以包含匯率服務
+func NewFlightHandler(flightService *services.AmadeusService, weatherService *services.WeatherService, exchangeService *services.ExchangeService) *FlightHandler {
 	return &FlightHandler{
-		amadeusService: flightService,
-		weatherService: weatherService,
+		amadeusService:  flightService,
+		weatherService:  weatherService,
+		exchangeService: exchangeService,
 	}
 }
 
@@ -496,4 +499,84 @@ func (h *FlightHandler) APIDocs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(docs)
+}
+
+// 新增：貨幣轉換 API
+func (h *FlightHandler) ConvertCurrency(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error": "方法不允許"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req models.CurrencyConversionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error": "無效的請求數據"}`, http.StatusBadRequest)
+		return
+	}
+
+	if req.Amount <= 0 || req.FromCurrency == "" || req.ToCurrency == "" {
+		http.Error(w, `{"error": "缺少必要參數: amount, from_currency, to_currency"}`, http.StatusBadRequest)
+		return
+	}
+
+	if h.exchangeService == nil {
+		http.Error(w, `{"error": "匯率服務未啟用"}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	convertedAmount, err := h.exchangeService.ConvertCurrency(req.Amount, req.FromCurrency, req.ToCurrency)
+	if err != nil {
+		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// 獲取匯率
+	rates, err := h.exchangeService.GetExchangeRates(req.FromCurrency, []string{req.ToCurrency})
+	if err != nil {
+		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	exchangeRate := rates.Rates[req.ToCurrency]
+
+	response := models.CurrencyConversionResponse{
+		OriginalAmount:  req.Amount,
+		ConvertedAmount: convertedAmount,
+		FromCurrency:    req.FromCurrency,
+		ToCurrency:      req.ToCurrency,
+		ExchangeRate:    exchangeRate,
+		LastUpdated:     rates.LastUpdated,
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// 新增：獲取支援的貨幣列表
+func (h *FlightHandler) GetSupportedCurrencies(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error": "方法不允許"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	var currencies []string
+	if h.exchangeService != nil {
+		currencies = h.exchangeService.GetSupportedCurrencies()
+	} else {
+		// 預設貨幣列表
+		currencies = []string{"TWD", "USD", "EUR", "JPY", "GBP", "CNY", "KRW", "HKD", "SGD"}
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    currencies,
+	})
 }
