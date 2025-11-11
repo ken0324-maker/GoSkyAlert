@@ -5,14 +5,21 @@ class FlightSearchApp {
         this.setDefaultDates();
         this.showTab('search');
         this.initCurrencyCalculator(); // 初始化匯率計算機
+        this.initTimeDiffCalculator(); // 初始化時差計算
     }
 
     initEventListeners() {
         const searchForm = document.getElementById('searchForm');
         const trackingForm = document.getElementById('trackingForm');
+        const timeDiffForm = document.getElementById('timeDiffForm'); // 獲取時差表單
         
         searchForm.addEventListener('submit', (e) => this.handleSearch(e));
         trackingForm.addEventListener('submit', (e) => this.handleTracking(e));
+
+        // 時差表單提交處理
+        if (timeDiffForm) {
+            timeDiffForm.addEventListener('submit', (e) => this.handleTimeDiffCalculation(e));
+        }
 
         // 機場自動完成
         this.setupAutocomplete('origin');
@@ -601,6 +608,104 @@ class FlightSearchApp {
             
         } catch (error) {
             console.error('載入即時匯率失敗:', error);
+        }
+    }
+
+    // 初始化時差計算機 (主要是為了未來擴展，目前僅為確保結構完整)
+    initTimeDiffCalculator() {
+        console.log('⏰ 時差計算機已初始化');
+        // 由於事件監聽已經在 initEventListeners 中完成，這裡暫時留空或用於未來設定初始值。
+    }
+
+    // 處理時差計算
+    async handleTimeDiffCalculation(e) {
+        e.preventDefault(); 
+        
+        // 獲取元素
+        const timeDiffResultCard = document.getElementById('timeDiffResultCard');
+        const timeDiffResultContent = document.getElementById('timeDiffResultContent');
+        const timeDiffError = document.getElementById('timeDiffError');
+        
+        // 輔助函數：隱藏錯誤和結果
+        const hideTimeDiffFeedback = () => {
+            if (timeDiffError) timeDiffError.classList.add('hidden');
+            if (timeDiffResultCard) timeDiffResultCard.classList.add('hidden');
+        };
+        // 輔助函數：顯示錯誤
+        const showTimeDiffError = (message) => {
+            if (timeDiffError) {
+                timeDiffError.classList.remove('hidden');
+                document.getElementById('timeDiffErrorMessage').textContent = message;
+            }
+            if (timeDiffResultCard) timeDiffResultCard.classList.add('hidden');
+        };
+
+        hideTimeDiffFeedback();
+        
+        // 獲取表單數據
+        const from = document.getElementById('timeDiffFrom').value.trim();
+        const to = document.getElementById('timeDiffTo').value.trim();
+
+        if (!from || !to) {
+            showTimeDiffError('請填寫完整的起始和目標時區。');
+            return;
+        }
+        
+        // 可在這裡顯示載入動畫
+
+        try {
+            const response = await fetch('/timediff', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    from: from,
+                    to: to
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || data.success === false) {
+                const errorMsg = data.error || '計算時差失敗，請檢查時區名稱是否為 Region/City 格式。';
+                showTimeDiffError(errorMsg);
+                return;
+            }
+
+            // 成功顯示結果
+            const { from: resFrom, to: resTo, diffStr, diff } = data;
+            
+            const isFaster = diff > 0;
+            const speedText = isFaster ? '快' : '慢';
+            const sign = diff >= 0 ? '+' : ''; // 正數或零顯示 + 號
+
+            timeDiffResultContent.innerHTML = `
+                <div class="result-display">
+                    <div class="location-info">
+                        <i class="fas fa-city"></i>
+                        <strong>${resFrom}</strong>
+                    </div>
+                    <i class="fas fa-long-arrow-alt-right result-arrow"></i>
+                    <div class="location-info">
+                        <i class="fas fa-globe"></i>
+                        <strong>${resTo}</strong>
+                    </div>
+                </div>
+
+                <div class="difference-info">
+                    <h3 class="highlight-diff">時差：<span class="diff-value">${sign}${diffStr}</span></h3>
+                    <p>（目標時區 <strong>${resTo}</strong> 比起始時區 <strong>${resFrom}</strong> 
+                        <span style="font-weight: bold; color: ${isFaster ? '#28a745' : '#dc3545'};">${speedText}</span> 
+                        ${isFaster ? '，即抵達時鐘要撥快' : '，即抵達時鐘要撥慢'}。）
+                    </p>
+                </div>
+            `;
+            if (timeDiffResultCard) timeDiffResultCard.classList.remove('hidden');
+
+        } catch (error) {
+            console.error('Fetch Error:', error);
+            showTimeDiffError('連線錯誤，請檢查網路或後端服務是否正常。');
         }
     }
 
