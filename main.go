@@ -121,4 +121,5 @@ func setupRoutes(flightHandler *handlers.FlightHandler) {
 	http.HandleFunc("/api/currency/supported", flightHandler.GetSupportedCurrencies) // 新增
 	http.HandleFunc("/api/docs", flightHandler.APIDocs)
 	http.HandleFunc("/health", flightHandler.HealthCheck)
+	http.HandleFunc("/timediff", handlers.TimeDiffHandler)
 }
