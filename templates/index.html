@@ -26,6 +26,9 @@
             <button class="nav-tab" data-tab="currency">
                 <i class="fas fa-calculator"></i> 匯率計算機
             </button>
+            <button class="nav-tab" data-tab="time-diff"> 
+                <i class="fas fa-clock"></i> 時差計算
+            </button>
         </div>
 
         <!-- 即時搜尋頁面 -->
@@ -337,6 +340,40 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+        <!-- 新增：時差計算頁面 -->
+         <div id="time-diffTab" class="tab-content">
+            <div class="search-card time-diff-card">
+                <h2><i class="fas fa-clock"></i> 時差計算機</h2>
+                <form id="timeDiffForm" class="time-diff-form"> 
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="timeDiffFrom"><i class="fas fa-city"></i> 起始時區 (Region/City)</label>
+                            <input type="text" id="timeDiffFrom" name="from" placeholder="例如: Asia/Taipei" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="timeDiffTo"><i class="fas fa-globe"></i> 目標時區 (Region/City)</label>
+                            <input type="text" id="timeDiffTo" name="to" placeholder="例如: Europe/London" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="search-btn" id="calculateTimeDiffBtn">
+                        <i class="fas fa-calculator"></i> 計算時差
+                    </button>
+                </form>
+
+                <div id="timeDiffResultCard" class="results time-diff-result-card hidden">
+                    <h3><i class="fas fa-clock"></i> 計算結果</h3>
+                    <div id="timeDiffResultContent" class="result-content">
+                        </div>
+                </div>
+                
+                <div id="timeDiffError" class="error hidden">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span id="timeDiffErrorMessage"></span>
+                </div>
+
+                <p class="note">⚠️ 時區名稱請使用 **Region/City** 格式，例如 `Asia/Taipei`。</p>
             </div>
         </div>
     </div>
