@@ -11,12 +11,16 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os" // 引入 os 模組用於檔案操作
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 )
+
+// 設定歷史記錄檔案路徑
+const historyFilePath = "amadeus_api_history.jsonl"
 
 type AmadeusService struct {
 	config        *config.Config
@@ -33,6 +37,54 @@ func NewAmadeusService(cfg *config.Config) *AmadeusService {
 		client:       &http.Client{Timeout: 30 * time.Second},
 		trackingData: make(map[string]*models.PriceAnalysis),
 	}
+}
+
+// 新增：將 API 響應儲存到本地歷史記錄檔案
+// 採用 JSON Lines (.jsonl) 格式，每次寫入一行 JSON
+func (s *AmadeusService) saveApiHistory(origin, destination, departureDate string, rawBody []byte) {
+	// 構造要儲存的歷史記錄結構
+	historyEntry := struct {
+		Timestamp     time.Time       `json:"timestamp"`
+		Origin        string          `json:"origin"`
+		Destination   string          `json:"destination"`
+		DepartureDate string          `json:"departure_date"`
+		RawResponse   json.RawMessage `json:"raw_response"`
+	}{
+		Timestamp:     time.Now(),
+		Origin:        origin,
+		Destination:   destination,
+		DepartureDate: departureDate,
+		RawResponse:   rawBody,
+	}
+
+	// 序列化為 JSON
+	jsonLine, err := json.Marshal(historyEntry)
+	if err != nil {
+		log.Printf("❌ 歷史記錄序列化失敗: %v", err)
+		return
+	}
+
+	// 開啟檔案，如果不存在則創建，O_APPEND 模式用於追加
+	file, err := os.OpenFile(historyFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Printf("❌ 無法開啟歷史記錄檔案 %s: %v", historyFilePath, err)
+		return
+	}
+	defer file.Close()
+
+	// 寫入 JSON 行和換行符
+	_, err = file.Write(jsonLine)
+	if err != nil {
+		log.Printf("❌ 寫入歷史記錄失敗: %v", err)
+		return
+	}
+	_, err = file.WriteString("\n")
+	if err != nil {
+		log.Printf("❌ 寫入換行符失敗: %v", err)
+		return
+	}
+
+	log.Printf("💾 成功將 API 響應儲存到歷史記錄檔案: %s", historyFilePath)
 }
 
 // 新增：機票價格追蹤功能
@@ -133,6 +185,10 @@ func (s *AmadeusService) getRealTimePrice(origin, destination, departureDate str
 		log.Printf("❌ API錯誤: 狀態碼 %d, 響應: %s", resp.StatusCode, string(body))
 		return 0, fmt.Errorf("API錯誤: 狀態碼 %d", resp.StatusCode)
 	}
+
+	// !!! 新增功能：將 API 響應儲存到歷史記錄檔案
+	s.saveApiHistory(origin, destination, departureDate, body)
+	// !!!
 
 	// 解析響應
 	var apiResponse models.AmadeusFlightOffersResponse
@@ -372,6 +428,7 @@ func (s *AmadeusService) generateMockPrice(origin, destination string, date time
 	advanceDiscount := s.getAdvanceDiscount(week, totalWeeks)
 
 	// 隨機波動
+	rand.Seed(time.Now().UnixNano()) // 確保每次運行隨機數不同
 	randomFactor := 0.85 + rand.Float64()*0.3
 
 	// 週期性波動（模擬價格波動）
