@@ -29,11 +29,13 @@
             <button class="nav-tab" data-tab="time-diff"> 
                 <i class="fas fa-clock"></i> 時差計算
             </button>
+            <button class="nav-tab" data-tab="attractions">
+                <i class="fas fa-landmark"></i> 景點查詢
+            </button>
         </div>
 
         <!-- 即時搜尋頁面 -->
         <div id="searchTab" class="tab-content active">
-            <!-- 現有的搜尋表單和結果保持不變 -->
             <div class="search-card">
                 <form id="searchForm" class="search-form">
                     <div class="form-row">
@@ -184,7 +186,6 @@
 
         <!-- 價格追蹤頁面 -->
         <div id="trackingTab" class="tab-content">
-            <!-- 現有的價格追蹤表單和結果保持不變 -->
             <div class="search-card">
                 <form id="trackingForm" class="search-form">
                     <div class="form-row">
@@ -240,7 +241,7 @@
             <div id="trackingResults" class="tracking-results hidden"></div>
         </div>
 
-        <!-- 新增：匯率計算機頁面 -->
+        <!-- 匯率計算機頁面 -->
         <div id="currencyTab" class="tab-content">
             <div class="search-card">
                 <div class="currency-calculator">
@@ -342,8 +343,9 @@
                 </div>
             </div>
         </div>
-        <!-- 新增：時差計算頁面 -->
-         <div id="time-diffTab" class="tab-content">
+
+        <!-- 時差計算頁面 -->
+        <div id="time-diffTab" class="tab-content">
             <div class="search-card time-diff-card">
                 <h2><i class="fas fa-clock"></i> 時差計算機</h2>
                 <form id="timeDiffForm" class="time-diff-form"> 
@@ -374,6 +376,79 @@
                 </div>
 
                 <p class="note">⚠️ 時區名稱請使用 **Region/City** 格式，例如 `Asia/Taipei`。</p>
+            </div>
+        </div>
+
+        <!-- 景點查詢頁面 - 修正：使用 div 而不是 form -->
+        <!-- 景點查詢頁面 -->
+        <div id="attractionsTab" class="tab-content">
+            <div class="search-card">
+                <form class="attractions-container">
+                    <h2><i class="fas fa-landmark"></i> 附近景點查詢</h2>
+                    <p class="description">輸入經緯度搜尋附近景點</p>
+                    
+                    <div class="search-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="attractionLocation"><i class="fas fa-map-marker-alt"></i> 地點名稱</label>
+                                <input type="text" id="attractionLocation" placeholder="例如: 東京羽田機場、台北101、紐約時代廣場" value="東京羽田機場" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="attractionRadius"><i class="fas fa-ruler"></i> 搜尋半徑</label>
+                                <select id="attractionRadius">
+                                    <option value="500">500 公尺</option>
+                                    <option value="1000" selected>1 公里</option>
+                                    <option value="2000">2 公里</option>
+                                    <option value="5000">5 公里</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="attractionQuery"><i class="fas fa-search"></i> 關鍵字搜尋 (選填)</label>
+                                <input type="text" id="attractionQuery" placeholder="例如: 餐廳、咖啡、博物館">
+                            </div>
+                            <div class="form-group">
+                                <label for="attractionCategory"><i class="fas fa-tags"></i> 類別篩選 (選填)</label>
+                                <select id="attractionCategory">
+                                    <option value="">所有類別</option>
+                                    <option value="13000">藝術與娛樂</option>
+                                    <option value="16000">地標與戶外</option>
+                                    <option value="10000">餐廳與美食</option>
+                                    <option value="17000">運動與休閒</option>
+                                    <option value="18000">購物與服務</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button type="submit" id="searchAttractionsBtn" class="search-btn">
+                            <i class="fas fa-search"></i> 搜尋景點
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 景點載入動畫 -->
+            <div id="attractionsLoading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>搜尋附近景點中...</p>
+            </div>
+
+            <!-- 景點錯誤訊息 -->
+            <div id="attractionsError" class="error hidden">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span id="attractionsErrorMessage"></span>
+            </div>
+
+            <!-- 景點搜尋結果 -->
+            <div id="attractionsResults" class="results hidden">
+                <h2><i class="fas fa-list"></i> 搜尋結果</h2>
+                <div id="attractionsCount" class="results-count"></div>
+                
+                <div id="attractionsList" class="attractions-grid">
+                    <!-- 景點卡片會在這裡動態生成 -->
+                </div>
             </div>
         </div>
     </div>

@@ -11,6 +11,7 @@ type Config struct {
 	AmadeusBaseURL     string
 	WeatherAPIKey      string // 新增 WeatherAPI 金鑰
 	ExchangeRateAPIKey string // 新增匯率 API 金鑰
+	FoursquareAPIKey   string // 新增 Foursquare API 金鑰
 	ServerPort         string
 	Environment        string
 	LogLevel           string
@@ -23,6 +24,7 @@ func LoadConfig() *Config {
 		AmadeusBaseURL:     getEnv("AMADEUS_BASE_URL", "https://test.api.amadeus.com/v2"),
 		WeatherAPIKey:      getEnv("WEATHER_API_KEY", ""),       // 新增 WeatherAPI 配置
 		ExchangeRateAPIKey: getEnv("EXCHANGE_RATE_API_KEY", ""), // 新增匯率 API 配置
+		FoursquareAPIKey:   getEnv("FOURSQUARE_API_KEY", ""),    // 新增 Foursquare API 配置
 		ServerPort:         getEnv("PORT", "8080"),
 		Environment:        getEnv("ENVIRONMENT", "development"),
 		LogLevel:           getEnv("LOG_LEVEL", "info"),
@@ -84,4 +86,9 @@ func (c *Config) HasWeatherAPI() bool {
 // 新增：檢查是否啟用匯率功能
 func (c *Config) HasExchangeRateAPI() bool {
 	return c.ExchangeRateAPIKey != ""
+}
+
+// 新增：檢查是否啟用景點功能
+func (c *Config) HasFoursquareAPI() bool {
+	return c.FoursquareAPIKey != ""
 }

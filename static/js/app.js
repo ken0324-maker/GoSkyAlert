@@ -4,14 +4,15 @@ class FlightSearchApp {
         this.initEventListeners();
         this.setDefaultDates();
         this.showTab('search');
-        this.initCurrencyCalculator(); // 初始化匯率計算機
-        this.initTimeDiffCalculator(); // 初始化時差計算
+        this.initCurrencyCalculator(); 
+        this.initTimeDiffCalculator();
+        this.initAttractionsSearch();
     }
 
     initEventListeners() {
         const searchForm = document.getElementById('searchForm');
         const trackingForm = document.getElementById('trackingForm');
-        const timeDiffForm = document.getElementById('timeDiffForm'); // 獲取時差表單
+        const timeDiffForm = document.getElementById('timeDiffForm'); 
         
         searchForm.addEventListener('submit', (e) => this.handleSearch(e));
         trackingForm.addEventListener('submit', (e) => this.handleTracking(e));
@@ -36,6 +37,362 @@ class FlightSearchApp {
         });
     }
 
+   async geocodeLocation(query) {
+        try {
+            console.log('🗺️ 地理編碼搜尋:', query);
+            // 使用免費的 Nominatim API (OpenStreetMap)
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+            const data = await response.json();
+            
+            if (data && data.length > 0) {
+                console.log('📍 找到位置:', data[0].display_name);
+                return {
+                    lat: parseFloat(data[0].lat),
+                    lng: parseFloat(data[0].lon),
+                    displayName: data[0].display_name
+                };
+            }
+            console.warn('❌ 找不到位置:', query);
+            return null;
+        } catch (error) {
+            console.error('地理編碼錯誤:', error);
+            return null;
+        }
+    }
+
+    // 初始化景點搜尋功能
+    initAttractionsSearch() {
+        const searchBtn = document.getElementById('searchAttractionsBtn');
+        
+        if (searchBtn) {
+            searchBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.handleAttractionsSearch();
+            });
+            
+            // 也支援 Enter 鍵搜尋
+            const latInput = document.getElementById('attractionLat');
+            const lngInput = document.getElementById('attractionLng');
+            const queryInput = document.getElementById('attractionQuery');
+            
+            if (latInput && lngInput) {
+                [latInput, lngInput, queryInput].forEach(input => {
+                    if (input) {
+                        input.addEventListener('keypress', (e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                this.handleAttractionsSearch();
+                            }
+                        });
+                    }
+                });
+            }
+            
+            console.log('✅ 景點搜尋功能初始化完成');
+        } else {
+            console.error('❌ 找不到景點搜尋按鈕');
+        }
+    }
+
+    // 處理景點搜尋 - 修復版本
+    // 處理景點搜尋 - 使用地理編碼版本
+async handleAttractionsSearch() {
+    console.log('🔍 開始搜尋景點...');
+    
+    // 獲取輸入值 - 改為地點名稱
+    const locationInput = document.getElementById('attractionLocation');
+    const radiusSelect = document.getElementById('attractionRadius');
+    const queryInput = document.getElementById('attractionQuery');
+    const categorySelect = document.getElementById('attractionCategory');
+    
+    if (!locationInput) {
+        console.error('❌ 找不到地點輸入框');
+        this.showAttractionsError('系統錯誤：找不到輸入框');
+        return;
+    }
+    
+    const locationQuery = locationInput.value.trim();
+    
+    // 驗證輸入
+    if (!locationQuery) {
+        this.showAttractionsError('請輸入地點名稱');
+        return;
+    }
+
+    console.log('📍 搜尋地點:', locationQuery);
+    
+    // 顯示載入狀態
+    this.showAttractionsLoading();
+    this.hideAttractionsError();
+    this.hideAttractionsResults();
+
+    try {
+        // 第一步：地理編碼，將地名轉為經緯度
+        const geocodeResult = await this.geocodeLocation(locationQuery);
+        
+        if (!geocodeResult) {
+            throw new Error(`找不到地點 "${locationQuery}"，請嘗試更明確的名稱`);
+        }
+
+        console.log('🎯 地理編碼結果:', geocodeResult);
+        
+        // 第二步：使用經緯度搜尋景點
+        const params = new URLSearchParams({
+            lat: geocodeResult.lat.toString(),
+            lng: geocodeResult.lng.toString(),
+            radius: radiusSelect ? radiusSelect.value : '1000'
+        });
+
+        if (queryInput && queryInput.value.trim()) {
+            params.append('query', queryInput.value.trim());
+        }
+        if (categorySelect && categorySelect.value && categorySelect.value !== 'all') {
+            params.append('category', categorySelect.value);
+        }
+
+        const apiUrl = `/api/attractions/search?${params.toString()}`;
+        console.log('🌐 發送景點搜尋請求:', apiUrl);
+        
+        const response = await fetch(apiUrl);
+        console.log('📡 API 回應狀態:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP錯誤: ${response.status} - ${errorText}`);
+        }
+
+        const data = await response.json();
+        console.log('✅ API 回應數據:', data);
+        
+        this.hideAttractionsLoading();
+
+        if (data.success) {
+            // 在結果中顯示地點名稱
+            const meta = data.meta || { 
+                radius: radiusSelect ? radiusSelect.value : '1000',
+                location: geocodeResult.displayName
+            };
+            this.displayAttractionsResults(data.data, meta);
+        } else {
+            throw new Error(data.message || data.error || '搜尋失敗');
+        }
+        } catch (error) {
+            console.error('❌ 景點搜尋請求失敗:', error);
+            this.hideAttractionsLoading();
+            this.showAttractionsError(`搜尋失敗: ${error.message}`);
+        }
+    }
+
+    // 顯示景點搜尋結果 - 修復版本
+    displayAttractionsResults(attractions, meta) {
+        console.log('🎯 顯示景點搜尋結果:', attractions);
+        
+        const countElement = document.getElementById('attractionsCount');
+        const listElement = document.getElementById('attractionsList');
+        
+        if (!countElement || !listElement) {
+            console.error('❌ 找不到景點結果顯示元素');
+            return;
+        }
+        
+        // 顯示統計資訊 - 修復：處理空資料情況
+        const count = attractions && Array.isArray(attractions) ? attractions.length : 0;
+        const radius = meta?.radius || '未知';
+        const location = meta?.location || '指定位置'; // 新增：取得地點名稱
+        
+        // 修改這行：加入地點名稱顯示
+        countElement.textContent = `在「${location}」附近找到 ${count} 個景點 (半徑: ${radius} 公尺)`;
+        
+        // 清空之前的結果
+        listElement.innerHTML = '';
+        
+        if (!attractions || !Array.isArray(attractions) || attractions.length === 0) {
+            listElement.innerHTML = `
+                <div class="attractions-empty" style="text-align: center; padding: 40px; color: #666;">
+                    <i class="fas fa-search-location" style="font-size: 3rem; margin-bottom: 15px;"></i>
+                    <h3>在「${location}」附近沒有找到符合條件的景點</h3>  <!-- 修改：加入地點名稱 -->
+                    <p>請嘗試：</p>
+                    <ul style="text-align: left; margin: 10px 0; display: inline-block;">
+                        <li>調整搜尋關鍵字</li>
+                        <li>擴大搜尋半徑</li>
+                        <li>確認地點名稱是否正確</li>  <!-- 修改：改為地點名稱 -->
+                    </ul>
+                </div>
+            `;
+        } else {
+            attractions.forEach((attraction, index) => {
+                console.log(`🏛️ 景點 ${index + 1}:`, attraction);
+                try {
+                    const card = this.createAttractionCard(attraction);
+                    listElement.appendChild(card);
+                } catch (error) {
+                    console.error(`❌ 創建景點卡片 ${index + 1} 失敗:`, error);
+                    // 創建一個錯誤卡片代替
+                    const errorCard = document.createElement('div');
+                    errorCard.className = 'attraction-card error';
+                    errorCard.innerHTML = `
+                        <div style="color: #dc3545; text-align: center; padding: 20px;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>無法顯示景點資訊</p>
+                        </div>
+                    `;
+                    listElement.appendChild(errorCard);
+                }
+            });
+        }
+        
+        this.showAttractionsResults();
+    }
+
+    // 創建景點卡片 - 修復版本
+    createAttractionCard(attraction) {
+        const card = document.createElement('div');
+        card.className = 'attraction-card';
+        card.style.cssText = `
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 15px;
+        `;
+        
+        card.onmouseover = () => {
+            card.style.transform = 'translateY(-2px)';
+            card.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)';
+        };
+        
+        card.onmouseout = () => {
+            card.style.transform = 'translateY(0)';
+            card.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
+        };
+        
+        // 修復：處理可能為空或未定義的欄位
+        const name = attraction.name || '未知名稱';
+        const category = attraction.category || attraction.primary_category || '未分類';
+        const rating = attraction.rating > 0 ? attraction.rating.toFixed(1) : '無評分';
+        const distance = attraction.distance ? Math.round(attraction.distance) : '未知';
+        const price = attraction.price > 0 ? '$'.repeat(attraction.price) : '未知';
+        
+        // 修復：安全處理營業狀態
+        let isOpenNow = false;
+        let statusText = '營業狀態未知';
+        let statusColor = '#6c757d';
+        
+        if (typeof attraction.is_open_now === 'boolean') {
+            isOpenNow = attraction.is_open_now;
+            statusText = isOpenNow ? '營業中' : '已休息';
+            statusColor = isOpenNow ? '#28a745' : '#dc3545';
+        }
+        
+        // 修復：安全處理其他可能為空的欄位
+        const address = attraction.address || attraction.location?.formatted_address || '地址未知';
+        const phone = attraction.phone || attraction.contact?.phone || '';
+        const website = attraction.website || attraction.contact?.website || '';
+        const reviewCount = attraction.review_count || attraction.stats?.review_count || 0;
+        
+        card.innerHTML = `
+            <div class="attraction-header" style="border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px;">
+                <h3 class="attraction-name" style="font-size: 1.2rem; font-weight: 600; color: #333; margin: 0 0 8px 0;">${this.escapeHtml(name)}</h3>
+                <span class="attraction-category" style="background: #667eea; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">${this.escapeHtml(category)}</span>
+            </div>
+            <div class="attraction-body">
+                <div class="attraction-info" style="display: flex; align-items: center; margin-bottom: 8px;">
+                    <i class="fas fa-star" style="color: #ffc107; width: 20px;"></i>
+                    <span class="attraction-rating" style="font-weight: 600;">${rating}</span>
+                    ${reviewCount > 0 ? `<span class="attraction-reviews" style="color: #666; margin-left: 8px;">(${reviewCount} 則評論)</span>` : ''}
+                </div>
+                
+                <div class="attraction-info" style="display: flex; align-items: center; margin-bottom: 8px;">
+                    <i class="fas fa-walking" style="color: #667eea; width: 20px;"></i>
+                    <span class="attraction-distance">${distance} 公尺</span>
+                </div>
+                
+                <div class="attraction-info" style="display: flex; align-items: center; margin-bottom: 8px;">
+                    <i class="fas fa-dollar-sign" style="color: #28a745; width: 20px;"></i>
+                    <span class="attraction-price">${price}</span>
+                </div>
+                
+                <div class="attraction-info" style="display: flex; align-items: center; margin-bottom: 8px;">
+                    <i class="fas fa-clock" style="color: ${statusColor}; width: 20px;"></i>
+                    <span class="attraction-status" style="color: ${statusColor}; font-weight: 600;">${statusText}</span>
+                </div>
+                
+                ${address && address !== '地址未知' ? `
+                <div class="attraction-info" style="display: flex; align-items: flex-start; margin-bottom: 8px;">
+                    <i class="fas fa-map-marker-alt" style="color: #e74c3c; width: 20px; margin-top: 2px;"></i>
+                    <span class="attraction-address" style="flex: 1;">${this.escapeHtml(address)}</span>
+                </div>
+                ` : ''}
+                
+                ${phone ? `
+                <div class="attraction-info" style="display: flex; align-items: center; margin-bottom: 8px;">
+                    <i class="fas fa-phone" style="color: #007bff; width: 20px;"></i>
+                    <span class="attraction-phone">${this.escapeHtml(phone)}</span>
+                </div>
+                ` : ''}
+                
+                ${website ? `
+                <div class="attraction-info" style="display: flex; align-items: center; margin-bottom: 8px;">
+                    <i class="fas fa-globe" style="color: #17a2b8; width: 20px;"></i>
+                    <a href="${this.escapeHtml(website)}" target="_blank" class="attraction-website" style="color: #17a2b8; text-decoration: none;">訪問網站</a>
+                </div>
+                ` : ''}
+            </div>
+        `;
+        
+        return card;
+    }
+
+    // HTML 轉義工具
+    escapeHtml(unsafe) {
+        if (!unsafe) return '';
+        return unsafe
+            .toString()
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    // 景點搜尋相關的 UI 控制方法
+    showAttractionsLoading() {
+        const element = document.getElementById('attractionsLoading');
+        if (element) element.classList.remove('hidden');
+    }
+
+    hideAttractionsLoading() {
+        const element = document.getElementById('attractionsLoading');
+        if (element) element.classList.add('hidden');
+    }
+
+    showAttractionsError(message) {
+        const errorElement = document.getElementById('attractionsError');
+        const messageElement = document.getElementById('attractionsErrorMessage');
+        
+        if (errorElement && messageElement) {
+            messageElement.textContent = message;
+            errorElement.classList.remove('hidden');
+        }
+    }
+
+    hideAttractionsError() {
+        const element = document.getElementById('attractionsError');
+        if (element) element.classList.add('hidden');
+    }
+
+    showAttractionsResults() {
+        const element = document.getElementById('attractionsResults');
+        if (element) element.classList.remove('hidden');
+    }
+
+    hideAttractionsResults() {
+        const element = document.getElementById('attractionsResults');
+        if (element) element.classList.add('hidden');
+    }
+
     showTab(tabName) {
         // 更新活躍標籤
         document.querySelectorAll('.nav-tab').forEach(tab => {
@@ -54,6 +411,8 @@ class FlightSearchApp {
         this.hideElement('trackingResults');
         this.hideElement('error');
         this.hideElement('trackingError');
+        this.hideAttractionsResults();
+        this.hideAttractionsError();
     }
 
     setDefaultDates() {
@@ -363,84 +722,9 @@ class FlightSearchApp {
             `;
             ratesContainer.appendChild(rateCard);
         });
-        
-        // 初始化貨幣轉換工具
-        this.initCurrencyConverter();
     }
 
-    // 初始化貨幣轉換工具
-    initCurrencyConverter() {
-        const convertBtn = document.getElementById('convertBtn');
-        if (convertBtn) {
-            convertBtn.addEventListener('click', () => this.handleCurrencyConversion());
-        }
-        
-        // 也支援 Enter 鍵轉換
-        const amountInput = document.getElementById('convertAmount');
-        if (amountInput) {
-            amountInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    this.handleCurrencyConversion();
-                }
-            });
-        }
-    }
-
-    // 處理貨幣轉換
-    async handleCurrencyConversion() {
-        const amount = parseFloat(document.getElementById('convertAmount').value);
-        const fromCurrency = document.getElementById('convertFrom').value;
-        const toCurrency = document.getElementById('convertTo').value;
-        const resultDiv = document.getElementById('conversionResult');
-        
-        if (!amount || amount <= 0) {
-            resultDiv.innerHTML = '<span style="color: #ff6b6b;">請輸入有效的金額</span>';
-            return;
-        }
-        
-        if (fromCurrency === toCurrency) {
-            resultDiv.innerHTML = '<span style="color: #ff6b6b;">請選擇不同的貨幣</span>';
-            return;
-        }
-        
-        try {
-            const response = await fetch('/api/currency/convert', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    amount: amount,
-                    from_currency: fromCurrency,
-                    to_currency: toCurrency
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                const result = data.data;
-                resultDiv.innerHTML = `
-                    <div style="font-size: 1.1em;">
-                        ${this.formatPrice(result.original_amount)} ${result.from_currency} = 
-                        <span style="color: #ffeb3b; font-size: 1.2em;">
-                            ${this.formatPrice(result.converted_amount)} ${result.to_currency}
-                        </span>
-                    </div>
-                    <div style="font-size: 0.9em; opacity: 0.8; margin-top: 5px;">
-                        匯率: 1 ${result.from_currency} = ${result.exchange_rate.toFixed(4)} ${result.to_currency}
-                    </div>
-                `;
-            } else {
-                resultDiv.innerHTML = `<span style="color: #ff6b6b;">轉換失敗: ${data.error}</span>`;
-            }
-        } catch (error) {
-            console.error('貨幣轉換錯誤:', error);
-            resultDiv.innerHTML = '<span style="color: #ff6b6b;">轉換服務暫時不可用</span>';
-        }
-    }
-
-    // 新增：初始化匯率計算機
+    // 初始化貨幣計算機
     initCurrencyCalculator() {
         const calculateBtn = document.getElementById('calculateBtn');
         const swapBtn = document.getElementById('swapCurrencies');
@@ -488,12 +772,9 @@ class FlightSearchApp {
                 }
             });
         }
-
-        // 載入時顯示即時匯率
-        this.loadLiveRates();
     }
 
-    // 新增：交換貨幣
+    // 交換貨幣
     swapCurrencies() {
         const fromSelect = document.getElementById('calcFromCurrency');
         const toSelect = document.getElementById('calcToCurrency');
@@ -511,7 +792,7 @@ class FlightSearchApp {
         }
     }
 
-    // 新增：處理貨幣計算
+    // 處理貨幣計算
     async handleCurrencyCalculation() {
         const amount = parseFloat(document.getElementById('calcAmount').value);
         const fromCurrency = document.getElementById('calcFromCurrency').value;
@@ -562,7 +843,7 @@ class FlightSearchApp {
         }
     }
 
-    // 新增：顯示計算結果
+    // 顯示計算結果
     displayCalculationResult(result) {
         document.getElementById('originalAmountDisplay').textContent = 
             this.formatPrice(result.original_amount);
@@ -585,7 +866,7 @@ class FlightSearchApp {
         document.getElementById('calcLastUpdated').textContent = lastUpdated;
     }
 
-    // 新增：顯示計算錯誤
+    // 顯示計算錯誤
     showCalculationError(message) {
         const resultDiv = document.getElementById('calcResult');
         resultDiv.innerHTML = `
@@ -597,29 +878,17 @@ class FlightSearchApp {
         this.showElement('calcResult');
     }
 
-    // 新增：載入即時匯率
-    async loadLiveRates() {
-        try {
-            const baseCurrency = 'TWD'; // 使用 TWD 作為基礎貨幣
-            const targetCurrencies = ['USD', 'EUR', 'JPY', 'GBP', 'CNY', 'KRW', 'HKD', 'SGD'];
-            
-            // 這裡可以呼叫 API 獲取即時匯率並顯示在表格中
-            console.log('載入即時匯率資料...');
-            
-        } catch (error) {
-            console.error('載入即時匯率失敗:', error);
-        }
-    }
-
-    // 初始化時差計算機 (主要是為了未來擴展，目前僅為確保結構完整)
+    // 初始化時差計算機
     initTimeDiffCalculator() {
         console.log('⏰ 時差計算機已初始化');
-        // 由於事件監聽已經在 initEventListeners 中完成，這裡暫時留空或用於未來設定初始值。
     }
 
     // 處理時差計算
+    // 處理時差計算 - 修復版本
     async handleTimeDiffCalculation(e) {
         e.preventDefault(); 
+        
+        console.log('⏰ 開始計算時差...');
         
         // 獲取元素
         const timeDiffResultCard = document.getElementById('timeDiffResultCard');
@@ -631,6 +900,7 @@ class FlightSearchApp {
             if (timeDiffError) timeDiffError.classList.add('hidden');
             if (timeDiffResultCard) timeDiffResultCard.classList.add('hidden');
         };
+        
         // 輔助函數：顯示錯誤
         const showTimeDiffError = (message) => {
             if (timeDiffError) {
@@ -646,35 +916,55 @@ class FlightSearchApp {
         const from = document.getElementById('timeDiffFrom').value.trim();
         const to = document.getElementById('timeDiffTo').value.trim();
 
+        console.log('📍 時區輸入:', { from, to });
+
         if (!from || !to) {
             showTimeDiffError('請填寫完整的起始和目標時區。');
             return;
         }
         
-        // 可在這裡顯示載入動畫
-
         try {
+            console.log('🌐 發送時差計算請求到 /timediff...');
+            
+            const formData = new URLSearchParams({
+                from: from,
+                to: to
+            });
+            
+            console.log('📦 請求資料:', formData.toString());
+            
             const response = await fetch('/timediff', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: new URLSearchParams({
-                    from: from,
-                    to: to
-                })
+                body: formData
             });
 
+            console.log('📡 回應狀態:', response.status, response.statusText);
+            
+            // 檢查回應類型
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error('❌ 非 JSON 回應:', text);
+                throw new Error('伺服器回應格式錯誤: ' + text);
+            }
+
             const data = await response.json();
+            console.log('✅ 回應數據:', data);
 
             if (!response.ok || data.success === false) {
                 const errorMsg = data.error || '計算時差失敗，請檢查時區名稱是否為 Region/City 格式。';
+                console.error('❌ 伺服器回報錯誤:', errorMsg);
                 showTimeDiffError(errorMsg);
                 return;
             }
 
             // 成功顯示結果
             const { from: resFrom, to: resTo, diffStr, diff } = data;
+            
+            console.log('🎯 時差計算結果:', { resFrom, resTo, diffStr, diff });
             
             const isFaster = diff > 0;
             const speedText = isFaster ? '快' : '慢';
@@ -697,15 +987,19 @@ class FlightSearchApp {
                     <h3 class="highlight-diff">時差：<span class="diff-value">${sign}${diffStr}</span></h3>
                     <p>（目標時區 <strong>${resTo}</strong> 比起始時區 <strong>${resFrom}</strong> 
                         <span style="font-weight: bold; color: ${isFaster ? '#28a745' : '#dc3545'};">${speedText}</span> 
-                        ${isFaster ? '，即抵達時鐘要撥快' : '，即抵達時鐘要撥慢'}。）
+                        ${Math.abs(diff)} 小時）
                     </p>
                 </div>
             `;
-            if (timeDiffResultCard) timeDiffResultCard.classList.remove('hidden');
+            
+            if (timeDiffResultCard) {
+                timeDiffResultCard.classList.remove('hidden');
+                console.log('✅ 時差結果顯示成功');
+            }
 
         } catch (error) {
-            console.error('Fetch Error:', error);
-            showTimeDiffError('連線錯誤，請檢查網路或後端服務是否正常。');
+            console.error('❌ Fetch Error:', error);
+            showTimeDiffError('連線錯誤，請檢查網路或後端服務是否正常: ' + error.message);
         }
     }
 

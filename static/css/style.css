@@ -826,3 +826,362 @@ body {
     font-size: 0.9em;
     color: #666;
 }
+
+/* 在現有 CSS 文件末尾添加以下景點相關樣式 */
+
+/* 景點容器 */
+.attractions-container {
+    max-width: 100%;
+}
+
+.attractions-container .description {
+    color: #666;
+    margin-bottom: 25px;
+    font-size: 16px;
+}
+
+/* 位置按鈕 */
+.location-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-top: 25px;
+    width: 100%;
+    transition: background-color 0.3s ease;
+}
+
+.location-btn:hover {
+    background: #218838;
+}
+
+.location-btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+/* 景點網格佈局 */
+.attractions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+/* 景點卡片 */
+.attraction-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid #e9ecef;
+}
+
+.attraction-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+}
+
+.attraction-header {
+    padding: 20px;
+    border-bottom: 1px solid #e9ecef;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.attraction-name {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    line-height: 1.3;
+}
+
+.attraction-category {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.attraction-body {
+    padding: 20px;
+}
+
+.attraction-info {
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: #555;
+    display: flex;
+    align-items: flex-start;
+}
+
+.attraction-info i {
+    width: 16px;
+    margin-right: 8px;
+    color: #6c757d;
+    margin-top: 2px;
+}
+
+.attraction-info strong {
+    color: #333;
+    margin-right: 5px;
+}
+
+.attraction-rating {
+    color: #ffc107;
+    font-weight: 600;
+}
+
+.attraction-distance {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.attraction-price {
+    color: #e74c3c;
+    font-weight: 600;
+}
+
+.attraction-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.attraction-status.open {
+    background: #d4edda;
+    color: #155724;
+}
+
+.attraction-status.closed {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.attraction-contact {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 15px;
+}
+
+.attraction-contact .contact-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.attraction-contact .contact-item:last-child {
+    margin-bottom: 0;
+}
+
+.attraction-contact .contact-item i {
+    width: 16px;
+    margin-right: 8px;
+    color: #6c757d;
+}
+
+.attraction-website a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.attraction-website a:hover {
+    text-decoration: underline;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+    .attractions-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .attraction-card {
+        margin-bottom: 0;
+    }
+    
+    .attraction-header {
+        padding: 15px;
+    }
+    
+    .attraction-body {
+        padding: 15px;
+    }
+}
+
+/* 載入狀態 */
+.attractions-loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+.attractions-loading .spinner {
+    margin: 0 auto 15px;
+}
+
+/* 空狀態 */
+.attractions-empty {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+.attractions-empty i {
+    font-size: 48px;
+    margin-bottom: 15px;
+    color: #dee2e6;
+}
+
+/* 景點統計 */
+.attractions-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.attractions-stats .stat-item {
+    text-align: center;
+}
+
+.attractions-stats .stat-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: #007bff;
+}
+
+.attractions-stats .stat-label {
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+}
+
+/* 地圖預覽 */
+.attraction-map {
+    margin-top: 15px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.attraction-map iframe {
+    width: 100%;
+    height: 150px;
+    border: none;
+}
+
+/* 熱門地點按鈕 */
+.popular-locations {
+    margin-top: 25px;
+}
+
+.popular-locations label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+}
+
+.location-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.location-tag {
+    background: #e9ecef;
+    border: 1px solid #dee2e6;
+    color: #495057;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.location-tag:hover {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+/* 景點搜尋建議 */
+#attractionLocationSuggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 0 0 5px 5px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+
+.suggestion-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.suggestion-item:hover {
+    background: #f8f9fa;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-code {
+    font-weight: bold;
+    color: #007bff;
+}
+
+.suggestion-name {
+    color: #666;
+    font-size: 12px;
+    margin-left: 8px;
+}
+
+.suggestion-type {
+    font-size: 11px;
+    color: #999;
+    margin-left: 8px;
+}
+
+/* 景點資訊改進 */
+.attraction-location-info {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #007bff;
+}
+
+.attraction-location-info h4 {
+    margin: 0 0 8px 0;
+    color: #333;
+}
+
+.attraction-location-info p {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+}

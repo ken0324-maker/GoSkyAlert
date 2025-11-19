@@ -58,8 +58,27 @@ func main() {
 		log.Printf("⚠️ 未設定ExchangeRateAPI金鑰，匯率功能已禁用")
 	}
 
-	// 修改：傳入匯率服務
-	flightHandler := handlers.NewFlightHandler(amadeusService, weatherService, exchangeService)
+	// 新增：初始化 Foursquare 景點服務
+	var foursquareService *services.FoursquareService
+	if cfg.HasFoursquareAPI() {
+		foursquareService = services.NewFoursquareService(cfg.FoursquareAPIKey)
+		log.Printf("🏛️  Foursquare 景點服務已初始化")
+
+		// 測試 API 連線（可選）
+		log.Printf("🔍 測試 Foursquare API 連線...")
+		if err := foursquareService.ValidateAPIKey(); err != nil {
+			log.Printf("❌ Foursquare API 金鑰驗證失敗: %v", err)
+			log.Printf("⚠️ 景點功能將被禁用")
+			foursquareService = nil
+		} else {
+			log.Printf("✅ Foursquare API 金鑰驗證成功")
+		}
+	} else {
+		log.Printf("⚠️ 未設定 FOURSQUARE_API_KEY，景點功能已禁用")
+	}
+
+	// 修改：傳入所有服務
+	flightHandler := handlers.NewFlightHandler(amadeusService, weatherService, exchangeService, foursquareService)
 
 	// 設置路由
 	setupRoutes(flightHandler)
@@ -83,6 +102,12 @@ func main() {
 		log.Printf("💱 匯率服務已禁用")
 	}
 
+	if foursquareService != nil {
+		log.Printf("🏛️  景點服務已就緒")
+	} else {
+		log.Printf("🏛️  景點服務已禁用")
+	}
+
 	log.Printf("===========================================")
 	log.Printf("📋 可用端點:")
 	log.Printf("   GET  /                         - 首頁")
@@ -91,8 +116,10 @@ func main() {
 	log.Printf("   GET  /api/flights/price-trend  - 價格趨勢")
 	log.Printf("   GET  /api/airports/search      - 搜尋機場")
 	log.Printf("   POST /api/alerts/create        - 創建警報")
-	log.Printf("   POST /api/currency/convert     - 貨幣轉換") // 新增
-	log.Printf("   GET  /api/currency/supported   - 支援貨幣") // 新增
+	log.Printf("   POST /api/currency/convert     - 貨幣轉換")
+	log.Printf("   GET  /api/currency/supported   - 支援貨幣")
+	log.Printf("   GET  /api/attractions/search   - 搜尋附近景點") // 新增
+	log.Printf("   GET  /api/attractions/categories - 景點類別") // 新增
 	log.Printf("   GET  /health                   - 健康檢查")
 	log.Printf("   GET  /api/docs                 - API文檔")
 	log.Printf("===========================================")
@@ -117,8 +144,10 @@ func setupRoutes(flightHandler *handlers.FlightHandler) {
 	http.HandleFunc("/api/flights/tracking-history", flightHandler.GetTrackingHistory)
 	http.HandleFunc("/api/airports/search", flightHandler.SearchAirports)
 	http.HandleFunc("/api/alerts/create", flightHandler.CreatePriceAlert)
-	http.HandleFunc("/api/currency/convert", flightHandler.ConvertCurrency)          // 新增
-	http.HandleFunc("/api/currency/supported", flightHandler.GetSupportedCurrencies) // 新增
+	http.HandleFunc("/api/currency/convert", flightHandler.ConvertCurrency)
+	http.HandleFunc("/api/currency/supported", flightHandler.GetSupportedCurrencies)
+	http.HandleFunc("/api/attractions/search", flightHandler.SearchAttractions)           // 新增
+	http.HandleFunc("/api/attractions/categories", flightHandler.GetAttractionCategories) // 新增
 	http.HandleFunc("/api/docs", flightHandler.APIDocs)
 	http.HandleFunc("/health", flightHandler.HealthCheck)
 	http.HandleFunc("/timediff", handlers.TimeDiffHandler)
