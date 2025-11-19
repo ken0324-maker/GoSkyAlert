@@ -8,7 +8,7 @@
 * **機票價格追蹤與分析**：追蹤特定航線在未來數週的價格趨勢，提供價格分析和最佳購買日期建議。
 * **目的地天氣預報**：在航班搜尋結果中整合出發地和目的地的天氣資訊，幫助規劃行程。
 * **貨幣匯率計算機**：提供即時貨幣轉換和匯率查詢功能。
-* **時區時差計算**：計算兩個指定時區（例如 `Asia/Taipei` 與 `Europe/London`）之間的時差。
+* **時區時差計算**：使用 WorldTimeAPI 計算兩個指定時區（例如 `Asia/Taipei` 與 `Europe/London`）之間的時差。
 * **附近景點查詢**：使用 Foursquare Places API 搜尋指定地點附近的景點、餐廳、商店等。
 * **Telegram 通知（基礎）**：具備發送簡單航班通知的能力。
 
@@ -22,8 +22,8 @@
 | **ExchangeRate-API** | 貨幣匯率計算 | `EXCHANGE_RATE_API_KEY` | [ExchangeRate-API](https://www.exchangerate-api.com/) |
 | **WeatherAPI** | 目的地天氣資訊 | `WEATHER_API_KEY` | [WeatherAPI](https://www.weatherapi.com/) |
 | **Foursquare Places** | 附近景點搜尋 | `FOURSQUARE_API_KEY` | [Foursquare Developers](https://foursquare.com/developers/) |
+| **WorldTimeAPI** | 時區時差計算 | *無需金鑰* | [WorldTimeAPI](http://worldtimeapi.org/) |
 | **OpenStreetMap Nominatim** | 地理編碼（地址轉經緯度） | *無需金鑰* | [Nominatim](https://nominatim.org/) |
-| **系統內建時區** | 時區時差計算 | *無需金鑰* | Go 語言內建 |
 | **Telegram** | 航班通知功能 | `TELEGRAM_BOT_TOKEN` | *可選* |
 
 ## 環境設置與運行
@@ -53,6 +53,7 @@ TELEGRAM_BOT_TOKEN="YOUR_TELEGRAM_BOT_TOKEN"
 # 服務器配置 (預設值)
 PORT="8080"
 ENVIRONMENT="development"
+```
 
 |目錄/文件|說明|
 |:---:|:---:|
@@ -60,10 +61,12 @@ ENVIRONMENT="development"
 |config/config.go|載入和驗證環境變數配置。|
 |handlers/|處理 HTTP 請求和響應的邏輯層。|
 |handlers/flight.go|處理航班搜尋、價格追蹤、天氣和匯率相關的路由。|
+|handlers/attraction.go|處理景點搜尋和類別查詢的路由。|
 |handlers/timezone.go|處理時差計算的路由。|
 |services/|處理業務邏輯和外部 API 交互的服務層。|
 |services/amadeus.go|Amadeus API 相關邏輯（航班、價格趨勢）。|
 |services/exchangeService.go|匯率 API 相關邏輯。|
+|services/foursquare_service.go|Foursquare Places API 相關邏輯（景點搜尋）。|
 |services/weather_service.go|天氣 API 相關邏輯。|
 |services/timezone_service.go|時區 API 相關邏輯。|
 |services/telegram.go|Telegram 通知發送邏輯。|
@@ -73,11 +76,3 @@ ENVIRONMENT="development"
 
 <<<<<<< HEAD
 AMADEUS_API_KEY 和 AMADEUS_API_SECRET => https://developers.amadeus.com/self-service/apis-docs/guides/developer-guides/quick-start/
-10/28 新增機票趨勢(amadeus API)
-11/3  新增天氣功能(www.weatherapi.com)
-11/10 新增匯率功能(https://www.exchangerate-api.com)
-=======
-AMADEUS_API_KEY and AMADEUS_API_SECRET => https://developers.amadeus.com/self-service/apis-docs/guides/developer-guides/quick-start/
-EXCHANGE_RATE_API_KEY => https://www.exchangerate-api.com/
-WEATHER_API_KEY => https://www.weatherapi.com/
->>>>>>> dc58b5785a21de51743ac71e711ad207629129b6
