@@ -1,6 +1,6 @@
 # 智慧航班搜尋與旅行工具 (Smart Flight Search & Travel Utility)
 
-這是一個基於 Go 語言（Golang）開發的全功能旅行輔助應用程式，集成了航班即時搜尋、價格趨勢追蹤、目的地天氣預報、貨幣匯率計算以及時區時差計算等多項實用功能。
+這是一個基於 Go 語言（Golang）開發的全功能旅行輔助應用程式，集成了航班即時搜尋、價格趨勢追蹤、目的地天氣預報、貨幣匯率計算、時區時差計算以及附近景點查詢等多項實用功能。
 
 ## 主要功能
 
@@ -9,6 +9,7 @@
 * **目的地天氣預報**：在航班搜尋結果中整合出發地和目的地的天氣資訊，幫助規劃行程。
 * **貨幣匯率計算機**：提供即時貨幣轉換和匯率查詢功能。
 * **時區時差計算**：計算兩個指定時區（例如 `Asia/Taipei` 與 `Europe/London`）之間的時差。
+* **附近景點查詢**：使用 Foursquare Places API 搜尋指定地點附近的景點、餐廳、商店等。
 * **Telegram 通知（基礎）**：具備發送簡單航班通知的能力。
 
 ## API 依賴
@@ -20,7 +21,9 @@
 | **Amadeus** | 航班搜尋、價格追蹤 | `AMADEUS_API_KEY`, `AMADEUS_API_SECRET` | [Amadeus Developers](https://developers.amadeus.com/self-service/apis-docs/guides/developer-guides/quick-start/) |
 | **ExchangeRate-API** | 貨幣匯率計算 | `EXCHANGE_RATE_API_KEY` | [ExchangeRate-API](https://www.exchangerate-api.com/) |
 | **WeatherAPI** | 目的地天氣資訊 | `WEATHER_API_KEY` | [WeatherAPI](https://www.weatherapi.com/) |
-| **WorldTimeAPI** | 時區時差計算 | *無需金鑰* | [WorldTimeAPI](http://worldtimeapi.org/) |
+| **Foursquare Places** | 附近景點搜尋 | `FOURSQUARE_API_KEY` | [Foursquare Developers](https://foursquare.com/developers/) |
+| **OpenStreetMap Nominatim** | 地理編碼（地址轉經緯度） | *無需金鑰* | [Nominatim](https://nominatim.org/) |
+| **系統內建時區** | 時區時差計算 | *無需金鑰* | Go 語言內建 |
 | **Telegram** | 航班通知功能 | `TELEGRAM_BOT_TOKEN` | *可選* |
 
 ## 環境設置與運行
@@ -30,17 +33,19 @@
 請在專案根目錄創建一個 `.env` 文件（或直接設置您的系統環境變數），填入從各服務商獲取的金鑰。
 
 ```bash
-# Amadeus API (必填)
+# Amadeus API (必填 - 航班搜尋核心功能)
 AMADEUS_API_KEY="YOUR_AMADEUS_KEY"
 AMADEUS_API_SECRET="YOUR_AMADEUS_SECRET"
-# Amadeus 測試環境 URL (預設使用測試環境)
-AMADEUS_BASE_URL="[https://test.api.amadeus.com/v2](https://test.api.amadeus.com/v2)" 
+AMADEUS_BASE_URL="https://test.api.amadeus.com/v2"
 
-# Exchange Rate API (必填)
+# Exchange Rate API (必填 - 匯率計算功能)
 EXCHANGE_RATE_API_KEY="YOUR_EXCHANGE_RATE_KEY"
 
 # Weather API (選填 - 如果不設定，天氣功能將禁用)
 WEATHER_API_KEY="YOUR_WEATHER_API_KEY"
+
+# Foursquare API (選填 - 如果不設定，景點搜尋功能將禁用)
+FOURSQUARE_API_KEY="YOUR_FOURSQUARE_API_KEY"
 
 # Telegram Bot (選填 - 如果不設定，通知功能將禁用)
 TELEGRAM_BOT_TOKEN="YOUR_TELEGRAM_BOT_TOKEN"
@@ -48,7 +53,6 @@ TELEGRAM_BOT_TOKEN="YOUR_TELEGRAM_BOT_TOKEN"
 # 服務器配置 (預設值)
 PORT="8080"
 ENVIRONMENT="development"
-```
 
 |目錄/文件|說明|
 |:---:|:---:|
