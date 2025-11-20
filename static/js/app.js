@@ -94,88 +94,87 @@ class FlightSearchApp {
         }
     }
 
-    // 處理景點搜尋 - 修復版本
     // 處理景點搜尋 - 使用地理編碼版本
-async handleAttractionsSearch() {
-    console.log('🔍 開始搜尋景點...');
-    
-    // 獲取輸入值 - 改為地點名稱
-    const locationInput = document.getElementById('attractionLocation');
-    const radiusSelect = document.getElementById('attractionRadius');
-    const queryInput = document.getElementById('attractionQuery');
-    const categorySelect = document.getElementById('attractionCategory');
-    
-    if (!locationInput) {
-        console.error('❌ 找不到地點輸入框');
-        this.showAttractionsError('系統錯誤：找不到輸入框');
-        return;
-    }
-    
-    const locationQuery = locationInput.value.trim();
-    
-    // 驗證輸入
-    if (!locationQuery) {
-        this.showAttractionsError('請輸入地點名稱');
-        return;
-    }
-
-    console.log('📍 搜尋地點:', locationQuery);
-    
-    // 顯示載入狀態
-    this.showAttractionsLoading();
-    this.hideAttractionsError();
-    this.hideAttractionsResults();
-
-    try {
-        // 第一步：地理編碼，將地名轉為經緯度
-        const geocodeResult = await this.geocodeLocation(locationQuery);
+    async handleAttractionsSearch() {
+        console.log('🔍 開始搜尋景點...');
         
-        if (!geocodeResult) {
-            throw new Error(`找不到地點 "${locationQuery}"，請嘗試更明確的名稱`);
+        // 獲取輸入值 - 改為地點名稱
+        const locationInput = document.getElementById('attractionLocation');
+        const radiusSelect = document.getElementById('attractionRadius');
+        const queryInput = document.getElementById('attractionQuery');
+        const categorySelect = document.getElementById('attractionCategory');
+        
+        if (!locationInput) {
+            console.error('❌ 找不到地點輸入框');
+            this.showAttractionsError('系統錯誤：找不到輸入框');
+            return;
+        }
+        
+        const locationQuery = locationInput.value.trim();
+        
+        // 驗證輸入
+        if (!locationQuery) {
+            this.showAttractionsError('請輸入地點名稱');
+            return;
         }
 
-        console.log('🎯 地理編碼結果:', geocodeResult);
+        console.log('📍 搜尋地點:', locationQuery);
         
-        // 第二步：使用經緯度搜尋景點
-        const params = new URLSearchParams({
-            lat: geocodeResult.lat.toString(),
-            lng: geocodeResult.lng.toString(),
-            radius: radiusSelect ? radiusSelect.value : '1000'
-        });
+        // 顯示載入狀態
+        this.showAttractionsLoading();
+        this.hideAttractionsError();
+        this.hideAttractionsResults();
 
-        if (queryInput && queryInput.value.trim()) {
-            params.append('query', queryInput.value.trim());
-        }
-        if (categorySelect && categorySelect.value && categorySelect.value !== 'all') {
-            params.append('category', categorySelect.value);
-        }
+        try {
+            // 第一步：地理編碼，將地名轉為經緯度
+            const geocodeResult = await this.geocodeLocation(locationQuery);
+            
+            if (!geocodeResult) {
+                throw new Error(`找不到地點 "${locationQuery}"，請嘗試更明確的名稱`);
+            }
 
-        const apiUrl = `/api/attractions/search?${params.toString()}`;
-        console.log('🌐 發送景點搜尋請求:', apiUrl);
-        
-        const response = await fetch(apiUrl);
-        console.log('📡 API 回應狀態:', response.status);
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP錯誤: ${response.status} - ${errorText}`);
-        }
+            console.log('🎯 地理編碼結果:', geocodeResult);
+            
+            // 第二步：使用經緯度搜尋景點
+            const params = new URLSearchParams({
+                lat: geocodeResult.lat.toString(),
+                lng: geocodeResult.lng.toString(),
+                radius: radiusSelect ? radiusSelect.value : '1000'
+            });
 
-        const data = await response.json();
-        console.log('✅ API 回應數據:', data);
-        
-        this.hideAttractionsLoading();
+            if (queryInput && queryInput.value.trim()) {
+                params.append('query', queryInput.value.trim());
+            }
+            if (categorySelect && categorySelect.value && categorySelect.value !== 'all') {
+                params.append('category', categorySelect.value);
+            }
 
-        if (data.success) {
-            // 在結果中顯示地點名稱
-            const meta = data.meta || { 
-                radius: radiusSelect ? radiusSelect.value : '1000',
-                location: geocodeResult.displayName
-            };
-            this.displayAttractionsResults(data.data, meta);
-        } else {
-            throw new Error(data.message || data.error || '搜尋失敗');
-        }
+            const apiUrl = `/api/attractions/search?${params.toString()}`;
+            console.log('🌐 發送景點搜尋請求:', apiUrl);
+            
+            const response = await fetch(apiUrl);
+            console.log('📡 API 回應狀態:', response.status);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP錯誤: ${response.status} - ${errorText}`);
+            }
+
+            const data = await response.json();
+            console.log('✅ API 回應數據:', data);
+            
+            this.hideAttractionsLoading();
+
+            if (data.success) {
+                // 在結果中顯示地點名稱
+                const meta = data.meta || { 
+                    radius: radiusSelect ? radiusSelect.value : '1000',
+                    location: geocodeResult.displayName
+                };
+                this.displayAttractionsResults(data.data, meta);
+            } else {
+                throw new Error(data.message || data.error || '搜尋失敗');
+            }
         } catch (error) {
             console.error('❌ 景點搜尋請求失敗:', error);
             this.hideAttractionsLoading();
@@ -183,7 +182,7 @@ async handleAttractionsSearch() {
         }
     }
 
-    // 顯示景點搜尋結果 - 修復版本
+    // 顯示景點搜尋結果
     displayAttractionsResults(attractions, meta) {
         console.log('🎯 顯示景點搜尋結果:', attractions);
         
@@ -210,13 +209,11 @@ async handleAttractionsSearch() {
             listElement.innerHTML = `
                 <div class="attractions-empty" style="text-align: center; padding: 40px; color: #666;">
                     <i class="fas fa-search-location" style="font-size: 3rem; margin-bottom: 15px;"></i>
-                    <h3>在「${location}」附近沒有找到符合條件的景點</h3>  <!-- 修改：加入地點名稱 -->
-                    <p>請嘗試：</p>
+                    <h3>在「${location}」附近沒有找到符合條件的景點</h3>  <p>請嘗試：</p>
                     <ul style="text-align: left; margin: 10px 0; display: inline-block;">
                         <li>調整搜尋關鍵字</li>
                         <li>擴大搜尋半徑</li>
-                        <li>確認地點名稱是否正確</li>  <!-- 修改：改為地點名稱 -->
-                    </ul>
+                        <li>確認地點名稱是否正確</li>  </ul>
                 </div>
             `;
         } else {
@@ -244,7 +241,7 @@ async handleAttractionsSearch() {
         this.showAttractionsResults();
     }
 
-    // 創建景點卡片 - 修復版本
+    // 創建景點卡片
     createAttractionCard(attraction) {
         const card = document.createElement('div');
         card.className = 'attraction-card';
@@ -635,11 +632,11 @@ async handleAttractionsSearch() {
         console.log('✅ 結果顯示完成');
     }
 
-    // 顯示天氣資訊
+    // 顯示天氣資訊 - 修正名稱
     displayWeatherInfo(weatherInfo) {
         console.log('🌤️ 顯示天氣資訊:', weatherInfo);
         
-        // 出發地天氣
+        // ... (保留原本的出發地天氣代碼) ...
         if (weatherInfo.origin_weather) {
             const origin = weatherInfo.origin_weather;
             document.getElementById('originTemp').textContent = `${Math.round(origin.avg_temp)}°C`;
@@ -648,13 +645,11 @@ async handleAttractionsSearch() {
             document.getElementById('originWind').textContent = origin.wind_speed;
             document.getElementById('originRain').textContent = origin.chance_of_rain || 0;
             
-            // 更新城市名稱顯示
             const originCityElement = document.querySelector('#originWeather h4');
             if (originCityElement) {
                 originCityElement.innerHTML = `<i class="fas fa-plane-departure"></i> ${origin.city} 天氣`;
             }
             
-            // 設定天氣圖標
             const originIcon = document.getElementById('originWeatherIcon');
             if (origin.icon && originIcon) {
                 originIcon.src = `https:${origin.icon}`;
@@ -662,7 +657,7 @@ async handleAttractionsSearch() {
             }
         }
 
-        // 目的地天氣
+        // ... (保留原本的目的地天氣代碼) ...
         if (weatherInfo.destination_weather) {
             const destination = weatherInfo.destination_weather;
             document.getElementById('destinationTemp').textContent = `${Math.round(destination.avg_temp)}°C`;
@@ -671,13 +666,11 @@ async handleAttractionsSearch() {
             document.getElementById('destinationWind').textContent = destination.wind_speed;
             document.getElementById('destinationRain').textContent = destination.chance_of_rain || 0;
             
-            // 更新城市名稱顯示
             const destinationCityElement = document.querySelector('#destinationWeather h4');
             if (destinationCityElement) {
                 destinationCityElement.innerHTML = `<i class="fas fa-plane-arrival"></i> ${destination.city} 天氣`;
             }
             
-            // 設定天氣圖標
             const destinationIcon = document.getElementById('destinationWeatherIcon');
             if (destination.icon && destinationIcon) {
                 destinationIcon.src = `https:${destination.icon}`;
@@ -685,9 +678,43 @@ async handleAttractionsSearch() {
             }
         }
 
-        // 旅行建議
+        // ... (保留原本的旅行建議代碼) ...
         if (weatherInfo.travel_advice) {
             document.getElementById('adviceText').textContent = weatherInfo.travel_advice;
+        }
+
+        // --- 新增：生成並插入打包清單 ---
+        // 1. 移除舊的清單 (如果有)
+        const oldList = document.getElementById('dynamicPackingList');
+        if (oldList) oldList.remove();
+
+        // 2. 如果有目的地天氣，生成新清單
+        if (weatherInfo.destination_weather) {
+            const packingItems = this.getPackingList(weatherInfo.destination_weather);
+            
+            // 建立 HTML 結構
+            const packingSection = document.createElement('div');
+            packingSection.id = 'dynamicPackingList';
+            packingSection.className = 'packing-list-section';
+            
+            let tagsHtml = packingItems.map(item => `
+                <div class="packing-tag">
+                    <i class="fas ${item.icon}"></i> ${item.name}
+                </div>
+            `).join('');
+
+            packingSection.innerHTML = `
+                <h4><i class="fas fa-suitcase-rolling"></i> 智慧打包建議 (依據當地天氣)</h4>
+                <div class="packing-tags">
+                    ${tagsHtml}
+                </div>
+            `;
+
+            // 3. 插入到天氣區塊的最後面
+            const weatherDiv = document.getElementById('weatherInfo');
+            if (weatherDiv) {
+                weatherDiv.appendChild(packingSection);
+            }
         }
     }
 
@@ -883,7 +910,6 @@ async handleAttractionsSearch() {
         console.log('⏰ 時差計算機已初始化');
     }
 
-    // 處理時差計算
     // 處理時差計算 - 修復版本
     async handleTimeDiffCalculation(e) {
         e.preventDefault(); 
@@ -1090,6 +1116,12 @@ async handleAttractionsSearch() {
         const price = flight.price || 0;
         const currency = flight.currency || 'TWD';
 
+        // --- 新增：判斷紅眼航班 ---
+        const isRedEye = this.checkRedEye(flight.departure);
+        const redEyeBadge = isRedEye 
+            ? `<span class="badge-redeye" title="此航班在深夜起飛"><i class="fas fa-moon"></i> 紅眼航班</span>` 
+            : '';
+
         return `
             <div class="flight-card">
                 <div class="flight-info">
@@ -1098,7 +1130,7 @@ async handleAttractionsSearch() {
                             ${flight.from?.code || '未知'} → ${flight.to?.code || '未知'}
                         </div>
                         <div class="flight-duration">
-                            ${this.formatDuration(flight.duration)}
+                            ${this.formatDuration(flight.duration)} ${redEyeBadge}
                         </div>
                     </div>
                     <div class="flight-details">
@@ -1134,6 +1166,48 @@ async handleAttractionsSearch() {
     formatPrice(price) {
         if (!price) return '0';
         return new Intl.NumberFormat('zh-TW').format(Math.round(price));
+    }
+
+    // --- 新增功能：檢查是否為紅眼航班 (00:00 - 06:00 起飛) ---
+    checkRedEye(departureDateString) {
+        if (!departureDateString) return false;
+        const date = new Date(departureDateString);
+        const hour = date.getHours();
+        // 如果是凌晨 0 點到 早上 6 點前，算紅眼
+        return hour >= 0 && hour < 6;
+    }
+
+    // --- 新增功能：根據天氣生成打包清單 ---
+    getPackingList(weather) {
+        const items = [
+            { icon: 'fa-passport', name: '護照/證件' },
+            { icon: 'fa-mobile-alt', name: '充電器/網卡' }
+        ];
+
+        if (!weather) return items;
+
+        const temp = weather.avg_temp;
+        const condition = weather.condition || '';
+        const rainChance = weather.chance_of_rain || 0;
+
+        // 溫度判斷
+        if (temp < 10) {
+            items.push({ icon: 'fa-snowflake', name: '厚外套/圍巾' });
+            items.push({ icon: 'fa-mitten', name: '暖暖包' });
+        } else if (temp < 20) {
+            items.push({ icon: 'fa-tshirt', name: '薄外套/長袖' });
+        } else if (temp > 28) {
+            items.push({ icon: 'fa-sun', name: '防曬乳/墨鏡' });
+            items.push({ icon: 'fa-fan', name: '手持風扇' });
+        }
+
+        // 天氣狀況判斷
+        if (condition.includes('Rain') || rainChance > 40) {
+            items.push({ icon: 'fa-umbrella', name: '摺疊傘' });
+            items.push({ icon: 'fa-shoe-prints', name: '防水鞋' });
+        }
+        
+        return items;
     }
 
     showError(message) {

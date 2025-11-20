@@ -30,11 +30,12 @@ func (h *FlightHandler) Index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *FlightHandler) SearchFlights(w http.ResponseWriter, r *http.Request) {
+	// 雖然 writeErr 會設定 header，但保留這行給成功的回應使用
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error": "方法不允許"}`, http.StatusMethodNotAllowed)
+		writeErr(w, http.StatusMethodNotAllowed, "方法不允許")
 		return
 	}
 
@@ -50,7 +51,7 @@ func (h *FlightHandler) SearchFlights(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.Origin == "" || req.Destination == "" || req.DepartureDate == "" {
-		http.Error(w, `{"error": "缺少必要參數: origin, destination, departure_date"}`, http.StatusBadRequest)
+		writeErr(w, http.StatusBadRequest, "缺少必要參數: origin, destination, departure_date")
 		return
 	}
 
@@ -65,7 +66,7 @@ func (h *FlightHandler) SearchFlights(w http.ResponseWriter, r *http.Request) {
 
 	flights, err := h.amadeusService.SearchFlights(req)
 	if err != nil {
-		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -201,7 +202,7 @@ func (h *FlightHandler) TrackFlightPrices(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error": "方法不允許"}`, http.StatusMethodNotAllowed)
+		writeErr(w, http.StatusMethodNotAllowed, "方法不允許")
 		return
 	}
 
@@ -214,7 +215,7 @@ func (h *FlightHandler) TrackFlightPrices(w http.ResponseWriter, r *http.Request
 	}
 
 	if req.Origin == "" || req.Destination == "" {
-		http.Error(w, `{"error": "缺少必要參數: origin, destination"}`, http.StatusBadRequest)
+		writeErr(w, http.StatusBadRequest, "缺少必要參數: origin, destination")
 		return
 	}
 
@@ -229,7 +230,7 @@ func (h *FlightHandler) TrackFlightPrices(w http.ResponseWriter, r *http.Request
 
 	analysis, err := h.amadeusService.TrackFlightPrices(req)
 	if err != nil {
-		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -252,7 +253,7 @@ func (h *FlightHandler) GetPriceTrend(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error": "方法不允許"}`, http.StatusMethodNotAllowed)
+		writeErr(w, http.StatusMethodNotAllowed, "方法不允許")
 		return
 	}
 
@@ -263,7 +264,7 @@ func (h *FlightHandler) GetPriceTrend(w http.ResponseWriter, r *http.Request) {
 	weeks := 18
 
 	if origin == "" || destination == "" {
-		http.Error(w, `{"error": "缺少必要參數: origin, destination"}`, http.StatusBadRequest)
+		writeErr(w, http.StatusBadRequest, "缺少必要參數: origin, destination")
 		return
 	}
 
@@ -275,7 +276,7 @@ func (h *FlightHandler) GetPriceTrend(w http.ResponseWriter, r *http.Request) {
 
 	trendData, err := h.amadeusService.GeneratePriceTrend(origin, destination, weeks)
 	if err != nil {
-		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -290,7 +291,7 @@ func (h *FlightHandler) GetTrackingHistory(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error": "方法不允許"}`, http.StatusMethodNotAllowed)
+		writeErr(w, http.StatusMethodNotAllowed, "方法不允許")
 		return
 	}
 
@@ -298,7 +299,7 @@ func (h *FlightHandler) GetTrackingHistory(w http.ResponseWriter, r *http.Reques
 	route := query.Get("route")
 
 	if route == "" {
-		http.Error(w, `{"error": "缺少必要參數: route"}`, http.StatusBadRequest)
+		writeErr(w, http.StatusBadRequest, "缺少必要參數: route")
 		return
 	}
 
@@ -317,7 +318,7 @@ func (h *FlightHandler) CreatePriceAlert(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	if r.Method != http.MethodPost {
-		http.Error(w, `{"error": "方法不允許"}`, http.StatusMethodNotAllowed)
+		writeErr(w, http.StatusMethodNotAllowed, "方法不允許")
 		return
 	}
 
@@ -327,12 +328,12 @@ func (h *FlightHandler) CreatePriceAlert(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&alertReq); err != nil {
-		http.Error(w, `{"error": "無效的請求數據"}`, http.StatusBadRequest)
+		writeErr(w, http.StatusBadRequest, "無效的請求數據")
 		return
 	}
 
 	if alertReq.Route == "" || alertReq.TargetPrice <= 0 {
-		http.Error(w, `{"error": "缺少必要參數: route, target_price"}`, http.StatusBadRequest)
+		writeErr(w, http.StatusBadRequest, "缺少必要參數: route, target_price")
 		return
 	}
 
@@ -353,19 +354,19 @@ func (h *FlightHandler) SearchAirports(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error": "方法不允許"}`, http.StatusMethodNotAllowed)
+		writeErr(w, http.StatusMethodNotAllowed, "方法不允許")
 		return
 	}
 
 	query := r.URL.Query().Get("q")
 	if query == "" {
-		http.Error(w, `{"error": "缺少查詢參數: q"}`, http.StatusBadRequest)
+		writeErr(w, http.StatusBadRequest, "缺少查詢參數: q")
 		return
 	}
 
 	airports, err := h.amadeusService.SearchAirports(query)
 	if err != nil {
-		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -380,35 +381,35 @@ func (h *FlightHandler) ConvertCurrency(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	if r.Method != http.MethodPost {
-		http.Error(w, `{"error": "方法不允許"}`, http.StatusMethodNotAllowed)
+		writeErr(w, http.StatusMethodNotAllowed, "方法不允許")
 		return
 	}
 
 	var req models.CurrencyConversionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error": "無效的請求數據"}`, http.StatusBadRequest)
+		writeErr(w, http.StatusBadRequest, "無效的請求數據")
 		return
 	}
 
 	if req.Amount <= 0 || req.FromCurrency == "" || req.ToCurrency == "" {
-		http.Error(w, `{"error": "缺少必要參數: amount, from_currency, to_currency"}`, http.StatusBadRequest)
+		writeErr(w, http.StatusBadRequest, "缺少必要參數: amount, from_currency, to_currency")
 		return
 	}
 
 	if h.exchangeService == nil {
-		http.Error(w, `{"error": "匯率服務未啟用"}`, http.StatusServiceUnavailable)
+		writeErr(w, http.StatusServiceUnavailable, "匯率服務未啟用")
 		return
 	}
 
 	convertedAmount, err := h.exchangeService.ConvertCurrency(req.Amount, req.FromCurrency, req.ToCurrency)
 	if err != nil {
-		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	rates, err := h.exchangeService.GetExchangeRates(req.FromCurrency, []string{req.ToCurrency})
 	if err != nil {
-		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -434,7 +435,7 @@ func (h *FlightHandler) GetSupportedCurrencies(w http.ResponseWriter, r *http.Re
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error": "方法不允許"}`, http.StatusMethodNotAllowed)
+		writeErr(w, http.StatusMethodNotAllowed, "方法不允許")
 		return
 	}
 
@@ -456,12 +457,12 @@ func (h *FlightHandler) SearchAttractions(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error": "方法不允許"}`, http.StatusMethodNotAllowed)
+		writeErr(w, http.StatusMethodNotAllowed, "方法不允許")
 		return
 	}
 
 	if h.foursquareService == nil {
-		http.Error(w, `{"error": "景點服務未啟用"}`, http.StatusServiceUnavailable)
+		writeErr(w, http.StatusServiceUnavailable, "景點服務未啟用")
 		return
 	}
 
@@ -474,13 +475,13 @@ func (h *FlightHandler) SearchAttractions(w http.ResponseWriter, r *http.Request
 
 	lat, err := strconv.ParseFloat(latStr, 64)
 	if err != nil {
-		http.Error(w, `{"error": "無效的緯度參數"}`, http.StatusBadRequest)
+		writeErr(w, http.StatusBadRequest, "無效的緯度參數")
 		return
 	}
 
 	lng, err := strconv.ParseFloat(lngStr, 64)
 	if err != nil {
-		http.Error(w, `{"error": "無效的經度參數"}`, http.StatusBadRequest)
+		writeErr(w, http.StatusBadRequest, "無效的經度參數")
 		return
 	}
 
@@ -502,7 +503,8 @@ func (h *FlightHandler) SearchAttractions(w http.ResponseWriter, r *http.Request
 
 	attractions, err := h.foursquareService.SearchNearby(req)
 	if err != nil {
-		http.Error(w, `{"error": "搜尋景點時發生錯誤: `+err.Error()+`"}`, http.StatusInternalServerError)
+		// 這裡特別注意，之前的拼接字串也被換掉了
+		writeErr(w, http.StatusInternalServerError, "搜尋景點時發生錯誤: "+err.Error())
 		return
 	}
 
@@ -525,7 +527,7 @@ func (h *FlightHandler) GetAttractionCategories(w http.ResponseWriter, r *http.R
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error": "方法不允許"}`, http.StatusMethodNotAllowed)
+		writeErr(w, http.StatusMethodNotAllowed, "方法不允許")
 		return
 	}
 

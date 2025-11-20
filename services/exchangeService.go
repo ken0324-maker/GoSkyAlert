@@ -129,3 +129,21 @@ func (s *ExchangeService) ValidateAPIKey() error {
 	}
 	return nil
 }
+
+func (s *ExchangeService) GetRate(from, to string) (float64, error) {
+	if from == "" || to == "" {
+		return 0, fmt.Errorf("貨幣代碼不可為空")
+	}
+	if from == to {
+		return 1.0, nil
+	}
+	res, err := s.GetExchangeRates(from, []string{to})
+	if err != nil {
+		return 0, err
+	}
+	rate, ok := res.Rates[to]
+	if !ok {
+		return 0, fmt.Errorf("不支援的貨幣轉換: %s -> %s", from, to)
+	}
+	return rate, nil
+}
