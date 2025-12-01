@@ -49,6 +49,16 @@ func (s *DiscordService) Stop() {
 	s.Session.Close()
 }
 
+// [新增] 輔助函式：從 "2026-02-14T12:10:00" 提取 "12:10"
+func formatTimeStr(ts string) string {
+	// 確保字串長度足夠，避免 panic
+	if len(ts) >= 16 {
+		// 取出 T 之後的時間部分 HH:MM
+		return ts[11:16]
+	}
+	return ts
+}
+
 // 處理訊息
 func (s *DiscordService) handleMessage(sess *discordgo.Session, m *discordgo.MessageCreate) {
 	// 忽略機器人自己發送的訊息
@@ -119,7 +129,12 @@ func (s *DiscordService) handleMessage(sess *discordgo.Session, m *discordgo.Mes
 			f := flights[i]
 			msg.WriteString(fmt.Sprintf("**%d. %s (%s)**\n", i+1, f.Airline, f.FlightNumber))
 			msg.WriteString(fmt.Sprintf("💰 價格: **$%.0f %s**\n", f.Price, f.Currency))
-			msg.WriteString(fmt.Sprintf("⏱️ 時間: %s ➝ %s (%s)\n", f.Departure.Format("15:04"), f.Arrival.Format("15:04"), f.Duration))
+
+			// [修改] 使用 formatTimeStr 處理字串時間，正確顯示 HH:MM
+			depTime := formatTimeStr(f.Departure)
+			arrTime := formatTimeStr(f.Arrival)
+
+			msg.WriteString(fmt.Sprintf("⏱️ 時間: %s ➝ %s (%s)\n", depTime, arrTime, f.Duration))
 			msg.WriteString("------------------------------\n")
 		}
 

@@ -734,9 +734,8 @@ func (s *AmadeusService) transformResponse(response models.AmadeusFlightOffersRe
 		// 解析價格
 		price, _ := strconv.ParseFloat(offer.Price.Total, 64)
 
-		// 解析時間
-		departureTime, _ := time.Parse(time.RFC3339, firstSegment.Departure.At)
-		arrivalTime, _ := time.Parse(time.RFC3339, lastSegment.Arrival.At)
+		// [修改] 不再解析時間，直接使用 API 回傳的原始字串
+		// 這樣可以保留 "當地時間" 語意，避免時區轉換錯誤導致的 08:06 問題
 
 		// 獲取航空公司名稱
 		airline := s.getAirlineName(firstSegment.CarrierCode)
@@ -755,8 +754,9 @@ func (s *AmadeusService) transformResponse(response models.AmadeusFlightOffersRe
 				Code:     lastSegment.Arrival.IATACode,
 				Terminal: lastSegment.Arrival.Terminal,
 			},
-			Departure: departureTime,
-			Arrival:   arrivalTime,
+			// [修改] 直接賦值字串
+			Departure: firstSegment.Departure.At,
+			Arrival:   lastSegment.Arrival.At,
 			Duration:  itinerary.Duration,
 			Stops:     len(itinerary.Segments) - 1,
 			Aircraft:  firstSegment.Aircraft.Code,

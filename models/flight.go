@@ -136,19 +136,20 @@ type TravelerPricing struct {
 
 // 統一的航班響應格式
 type Flight struct {
-	ID           string    `json:"id"`
-	Price        float64   `json:"price"`
-	Currency     string    `json:"currency"`
-	Airline      string    `json:"airline"`
-	FlightNumber string    `json:"flight_number"`
-	From         Airport   `json:"from"`
-	To           Airport   `json:"to"`
-	Departure    time.Time `json:"departure"`
-	Arrival      time.Time `json:"arrival"`
-	Duration     string    `json:"duration"`
-	Stops        int       `json:"stops"`
-	Aircraft     string    `json:"aircraft"`
-	DeepLink     string    `json:"deep_link,omitempty"`
+	ID           string  `json:"id"`
+	Price        float64 `json:"price"`
+	Currency     string  `json:"currency"`
+	Airline      string  `json:"airline"`
+	FlightNumber string  `json:"flight_number"`
+	From         Airport `json:"from"`
+	To           Airport `json:"to"`
+	// [修改] 改用 string 以保持原始當地時間 (解決 08:06 問題)
+	Departure string `json:"departure"`
+	Arrival   string `json:"arrival"`
+	Duration  string `json:"duration"`
+	Stops     int    `json:"stops"`
+	Aircraft  string `json:"aircraft"`
+	DeepLink  string `json:"deep_link,omitempty"`
 }
 
 type Airport struct {
