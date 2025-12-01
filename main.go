@@ -41,9 +41,16 @@ func main() {
 		log.Printf("🏛️  景點服務已初始化")
 	}
 
-	// [新增] 初始化 Discord Bot
+	// [關鍵修改] 初始化 Discord Bot，傳入所有 5 個服務參數
 	if cfg.HasDiscordAPI() {
-		discordService, err := services.NewDiscordService(cfg.DiscordBotToken, amadeusService)
+		discordService, err := services.NewDiscordService(
+			cfg.DiscordBotToken,
+			amadeusService,
+			weatherService,
+			exchangeService,
+			foursquareService,
+		)
+
 		if err != nil {
 			log.Printf("❌ Discord 服務初始化失敗: %v", err)
 		} else {
@@ -51,6 +58,7 @@ func main() {
 			if err := discordService.Start(); err != nil {
 				log.Printf("❌ Discord 連線失敗: %v", err)
 			} else {
+				log.Printf("🤖 Discord 機器人已啟動並監聽指令")
 				// 程式結束時關閉連線
 				defer discordService.Stop()
 			}
