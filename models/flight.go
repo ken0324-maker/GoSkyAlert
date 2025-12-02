@@ -12,6 +12,26 @@ type SearchRequest struct {
 	Currency      string `json:"currency"`
 }
 
+// 儲存在 history.json 的單筆紀錄
+type SearchHistoryRecord struct {
+	Origin        string    `json:"origin"`
+	Destination   string    `json:"destination"`
+	DepartureDate string    `json:"departure_date"` // 出發日期
+	Price         float64   `json:"price"`          // 當時查到的最低價
+	RecordDate    time.Time `json:"record_date"`    // 搜尋當下的時間
+}
+
+// 提供給前端的價格建議
+type PriceAdvice struct {
+	CurrentLowest float64 `json:"current_lowest"` // 本次最低價
+	HistoryAvg    float64 `json:"history_avg"`    // 歷史平均價
+	HistoryLow    float64 `json:"history_low"`    // 歷史最低價
+	HistoryHigh   float64 `json:"history_high"`   // 歷史最高價
+	Trend         string  `json:"trend"`          // 趨勢: "up", "down", "stable"
+	Advice        string  `json:"advice"`         // 文字建議 (e.g., "快買", "再等等")
+	DiffPercent   float64 `json:"diff_percent"`   // 與平均價的差幅百分比
+}
+
 // 新增：價格追蹤請求
 type PriceTrackingRequest struct {
 	Origin      string `json:"origin"`
@@ -334,7 +354,9 @@ type HourlyForecast struct {
 type FlightSearchResponseWithWeather struct {
 	Flights []Flight     `json:"flights"`
 	Weather *WeatherInfo `json:"weather,omitempty"`
-	Meta    struct {
+	// [新增] 價格建議
+	PriceAdvice *PriceAdvice `json:"price_advice,omitempty"`
+	Meta        struct {
 		Count         int    `json:"count"`
 		Origin        string `json:"origin"`
 		Destination   string `json:"destination"`
