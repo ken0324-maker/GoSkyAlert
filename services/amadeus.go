@@ -20,7 +20,10 @@ import (
 )
 
 // 設定歷史記錄檔案路徑
-const historyFilePath = "amadeus_api_history.jsonl"
+const (
+	historyFilePath = "amadeus_api_history.jsonl" // 原始響應紀錄 (JSONL)
+	priceHistoryDB  = "history.json"              // 結構化價格紀錄 (JSON Array)
+)
 
 type AmadeusService struct {
 	config        *config.Config
@@ -29,6 +32,7 @@ type AmadeusService struct {
 	tokenExpiry   time.Time
 	trackingData  map[string]*models.PriceAnalysis
 	trackingMutex sync.RWMutex
+	historyMutex  sync.Mutex // 用於保護 history.json 的寫入
 }
 
 func NewAmadeusService(cfg *config.Config) *AmadeusService {
@@ -37,6 +41,128 @@ func NewAmadeusService(cfg *config.Config) *AmadeusService {
 		client:       &http.Client{Timeout: 30 * time.Second},
 		trackingData: make(map[string]*models.PriceAnalysis),
 	}
+}
+
+// ---------------------------------------------------------
+// [新增] 本地歷史比價功能方法
+// ---------------------------------------------------------
+
+// loadSearchHistory 讀取所有歷史價格紀錄
+func (s *AmadeusService) loadSearchHistory() ([]models.SearchHistoryRecord, error) {
+	s.historyMutex.Lock()
+	defer s.historyMutex.Unlock()
+
+	file, err := os.Open(priceHistoryDB)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []models.SearchHistoryRecord{}, nil
+		}
+		return nil, err
+	}
+	defer file.Close()
+
+	var history []models.SearchHistoryRecord
+	if err := json.NewDecoder(file).Decode(&history); err != nil {
+		// 如果檔案是空的或格式錯誤，回傳空切片
+		return []models.SearchHistoryRecord{}, nil
+	}
+	return history, nil
+}
+
+// saveSearchHistory 儲存新的搜尋紀錄
+func (s *AmadeusService) saveSearchHistory(record models.SearchHistoryRecord) error {
+	// 先讀取現有紀錄 (為了避免覆寫，雖然效率較低但在小規模應用可接受)
+	history, err := s.loadSearchHistory()
+	if err != nil {
+		return err
+	}
+
+	history = append(history, record)
+
+	s.historyMutex.Lock()
+	defer s.historyMutex.Unlock()
+
+	file, err := os.Create(priceHistoryDB)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// 寫入格式化後的 JSON
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(history)
+}
+
+// analyzePriceHistory 比較當前價格與歷史紀錄，生成建議
+func (s *AmadeusService) analyzePriceHistory(origin, dest, date string, currentPrice float64) *models.PriceAdvice {
+	history, err := s.loadSearchHistory()
+	if err != nil {
+		log.Printf("⚠️ 讀取歷史紀錄失敗: %v", err)
+		return nil
+	}
+
+	var relevantPrices []float64
+	for _, h := range history {
+		// 篩選相同行程 (起點、終點、出發日期)
+		if h.Origin == origin && h.Destination == dest && h.DepartureDate == date {
+			relevantPrices = append(relevantPrices, h.Price)
+		}
+	}
+
+	// 如果沒有歷史紀錄，無法給出建議
+	if len(relevantPrices) == 0 {
+		return &models.PriceAdvice{
+			CurrentLowest: currentPrice,
+			Advice:        "這是我們第一次追蹤此日期的價格，建議您持續關注。",
+			Trend:         "new",
+		}
+	}
+
+	// 計算統計數據
+	minPrice := currentPrice
+	maxPrice := currentPrice
+	sumPrice := currentPrice
+	count := 1.0 // 包含這一次
+
+	for _, p := range relevantPrices {
+		if p < minPrice {
+			minPrice = p
+		}
+		if p > maxPrice {
+			maxPrice = p
+		}
+		sumPrice += p
+		count++
+	}
+
+	avgPrice := sumPrice / count
+	diffPercent := ((currentPrice - avgPrice) / avgPrice) * 100
+
+	advice := &models.PriceAdvice{
+		CurrentLowest: currentPrice,
+		HistoryAvg:    avgPrice,
+		HistoryLow:    minPrice,
+		HistoryHigh:   maxPrice,
+		DiffPercent:   diffPercent,
+	}
+
+	// 生成建議邏輯
+	if currentPrice <= minPrice {
+		advice.Trend = "down"
+		advice.Advice = "🔥 歷史新低價！強烈建議立即購買，現在最划算！"
+	} else if diffPercent <= -10 {
+		advice.Trend = "down"
+		advice.Advice = "💰 價格大幅下跌！比平均便宜 10% 以上，建議入手。"
+	} else if diffPercent >= 10 {
+		advice.Trend = "up"
+		advice.Advice = "📈 價格偏高。目前比平均貴 10% 以上，若不急可以再觀望。"
+	} else {
+		advice.Trend = "stable"
+		advice.Advice = "⚖️ 價格持平。目前價格在平均範圍內，可依需求購買。"
+	}
+
+	return advice
 }
 
 // 新增：將 API 響應儲存到本地歷史記錄檔案
@@ -650,10 +776,10 @@ func (s *AmadeusService) getAccessToken() (string, error) {
 }
 
 // 搜尋航班報價
-func (s *AmadeusService) SearchFlights(req models.SearchRequest) ([]models.Flight, error) {
+func (s *AmadeusService) SearchFlights(req models.SearchRequest) ([]models.Flight, *models.PriceAdvice, error) {
 	token, err := s.getAccessToken()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// 構建API URL
@@ -671,14 +797,14 @@ func (s *AmadeusService) SearchFlights(req models.SearchRequest) ([]models.Fligh
 
 	params.Add("adults", strconv.Itoa(req.Adults))
 	params.Add("currencyCode", req.Currency)
-	params.Add("max", "10") // 限制結果數量
+	params.Add("max", "10")
 
 	fullURL := apiURL + "?" + params.Encode()
 
 	// 創建請求
 	httpReq, err := http.NewRequest("GET", fullURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("創建請求失敗: %v", err)
+		return nil, nil, fmt.Errorf("創建請求失敗: %v", err)
 	}
 
 	httpReq.Header.Add("Authorization", "Bearer "+token)
@@ -688,30 +814,70 @@ func (s *AmadeusService) SearchFlights(req models.SearchRequest) ([]models.Fligh
 	// 發送請求
 	resp, err := s.client.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("API請求失敗: %v", err)
+		return nil, nil, fmt.Errorf("API請求失敗: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("讀取響應失敗: %v", err)
+		return nil, nil, fmt.Errorf("讀取響應失敗: %v", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("❌ API錯誤響應: %s", string(body))
-		return nil, fmt.Errorf("API錯誤: 狀態碼 %d", resp.StatusCode)
+		return nil, nil, fmt.Errorf("API錯誤: 狀態碼 %d", resp.StatusCode)
 	}
+
+	// 保存原始 API 響應 (既有功能)
+	s.saveApiHistory(req.Origin, req.Destination, req.DepartureDate, body)
 
 	// 解析響應
 	var apiResponse models.AmadeusFlightOffersResponse
 	if err := json.Unmarshal(body, &apiResponse); err != nil {
-		return nil, fmt.Errorf("解析JSON失敗: %v", err)
+		return nil, nil, fmt.Errorf("解析JSON失敗: %v", err)
 	}
 
 	log.Printf("✅ 找到 %d 個航班報價", len(apiResponse.Data))
 
-	// 轉換為統一格式
-	return s.transformResponse(apiResponse), nil
+	flights := s.transformResponse(apiResponse)
+
+	// ---------------------------------------------------------
+	// [新增] 歷史價格處理邏輯
+	// ---------------------------------------------------------
+	var advice *models.PriceAdvice
+
+	if len(flights) > 0 {
+		// 1. 找出本次搜尋的最低價格
+		lowestPrice := flights[0].Price
+		for _, f := range flights {
+			if f.Price < lowestPrice {
+				lowestPrice = f.Price
+			}
+		}
+
+		// 2. 生成比價建議 (在儲存本次紀錄前先比較，這樣才能跟"過去"比)
+		// 只有當貨幣為 TWD 時才進行精確比價，避免匯率問題，或者假設前端都傳 TWD
+		if req.Currency == "TWD" || req.Currency == "" {
+			advice = s.analyzePriceHistory(req.Origin, req.Destination, req.DepartureDate, lowestPrice)
+
+			// 3. 儲存本次紀錄到 history.json
+			newRecord := models.SearchHistoryRecord{
+				Origin:        req.Origin,
+				Destination:   req.Destination,
+				DepartureDate: req.DepartureDate,
+				Price:         lowestPrice,
+				RecordDate:    time.Now(),
+			}
+
+			if err := s.saveSearchHistory(newRecord); err != nil {
+				log.Printf("⚠️ 無法儲存搜尋歷史: %v", err)
+			} else {
+				log.Printf("💾 已儲存價格紀錄: %s->%s ($%.0f)", req.Origin, req.Destination, lowestPrice)
+			}
+		}
+	}
+
+	return flights, advice, nil
 }
 
 // 轉換Amadeus響應為統一格式
