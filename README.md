@@ -56,6 +56,17 @@ PORT="8080"
 ENVIRONMENT="development"
 ```
 
+Discord 指令
+邀請您的 Bot 進入伺服器後，可使用以下指令：
+|指令|說明|範例|
+|:---:|:---:|:---:|
+|/help|顯示所有指令說明|/help|
+|/price|查詢航班與價格分析|/price TPE NRT 2025-12-01|
+|/weather|查詢城市天氣|/weather Tokyo|
+|/rate|查詢即時匯率|/rate USD TWD|
+|/spot|查詢附近景點|/spot 大阪|
+(您也可以使用 ! 作為前綴，例如 !price)
+
 |目錄/文件|說明|
 |:---:|:---:|
 |main.go|應用程式入口點，負責初始化配置、服務和路由。|
