@@ -65,7 +65,9 @@ Discord 指令
 |/weather|查詢城市天氣|/weather Tokyo|
 |/rate|查詢即時匯率|/rate USD TWD|
 |/spot|查詢附近景點|/spot 大阪|
+
 (您也可以使用 ! 作為前綴，例如 !price)
+
 
 |目錄/文件|說明|
 |:---:|:---:|
