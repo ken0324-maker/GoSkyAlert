@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"final/models"
 	"final/services"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -29,55 +30,52 @@ func (h *FlightHandler) Index(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "templates/index.html")
 }
 
+// SearchFlights 處理航班搜尋請求 (包含歷史比價功能)
 func (h *FlightHandler) SearchFlights(w http.ResponseWriter, r *http.Request) {
-	// 雖然 writeErr 會設定 header，但保留這行給成功的回應使用
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 1. 解析參數
+	origin := r.URL.Query().Get("origin")
+	destination := r.URL.Query().Get("destination")
+	departureDate := r.URL.Query().Get("departure_date")
+	returnDate := r.URL.Query().Get("return_date")
+	adultsStr := r.URL.Query().Get("adults")
+	currency := r.URL.Query().Get("currency")
 
-	if r.Method != http.MethodGet {
-		writeErr(w, http.StatusMethodNotAllowed, "方法不允許")
+	if origin == "" || destination == "" || departureDate == "" {
+		writeErr(w, http.StatusBadRequest, "缺少必要參數 (origin, destination, departure_date)")
 		return
 	}
 
-	query := r.URL.Query()
+	adults := 1
+	if v, err := strconv.Atoi(adultsStr); err == nil && v > 0 {
+		adults = v
+	}
+
+	if currency == "" {
+		currency = "TWD"
+	}
 
 	req := models.SearchRequest{
-		Origin:        query.Get("origin"),
-		Destination:   query.Get("destination"),
-		DepartureDate: query.Get("departure_date"),
-		ReturnDate:    query.Get("return_date"),
-		Currency:      query.Get("currency"),
-		Adults:        1,
+		Origin:        origin,
+		Destination:   destination,
+		DepartureDate: departureDate,
+		ReturnDate:    returnDate,
+		Adults:        adults,
+		Currency:      currency,
 	}
 
-	if req.Origin == "" || req.Destination == "" || req.DepartureDate == "" {
-		writeErr(w, http.StatusBadRequest, "缺少必要參數: origin, destination, departure_date")
-		return
-	}
-
-	if req.Currency == "" {
-		req.Currency = "TWD"
-	}
-	if adultsStr := query.Get("adults"); adultsStr != "" {
-		if adults, err := strconv.Atoi(adultsStr); err == nil && adults > 0 {
-			req.Adults = adults
-		}
-	}
-
-	flights, err := h.amadeusService.SearchFlights(req)
+	// 2. 呼叫 Amadeus Service
+	// 注意：這裡使用了 h.amadeusService，並且接收 advice 回傳值
+	flights, advice, err := h.amadeusService.SearchFlights(req)
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, err.Error())
+		log.Printf("搜尋失敗: %v", err)
+		writeErr(w, http.StatusInternalServerError, "航班搜尋失敗: "+err.Error())
 		return
 	}
 
-	var weatherInfo *models.WeatherInfo
-	if h.weatherService != nil {
-		weatherInfo = h.getWeatherInfo(req.Origin, req.Destination, req.DepartureDate)
-	}
-
+	// 3. 準備回應結構
 	response := models.FlightSearchResponseWithWeather{
-		Flights: flights,
-		Weather: weatherInfo,
+		Flights:     flights,
+		PriceAdvice: advice, // [新增] 將比價建議放入回應
 		Meta: struct {
 			Count         int    `json:"count"`
 			Origin        string `json:"origin"`
@@ -85,13 +83,35 @@ func (h *FlightHandler) SearchFlights(w http.ResponseWriter, r *http.Request) {
 			DepartureDate string `json:"departure_date"`
 		}{
 			Count:         len(flights),
-			Origin:        req.Origin,
-			Destination:   req.Destination,
-			DepartureDate: req.DepartureDate,
+			Origin:        origin,
+			Destination:   destination,
+			DepartureDate: departureDate,
 		},
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	// 4. (選填) 取得天氣資訊
+	// 注意：這裡使用了 h.weatherService
+	if h.weatherService != nil {
+		originCity := models.GetCityByAirportCode(origin)
+		destCity := models.GetCityByAirportCode(destination)
+
+		weatherInfo := &models.WeatherInfo{}
+
+		// 取得出發地天氣
+		if wData, err := h.weatherService.GetWeatherSummary(originCity, departureDate); err == nil {
+			weatherInfo.OriginWeather = wData
+		}
+
+		// 取得目的地天氣
+		if wData, err := h.weatherService.GetWeatherSummary(destCity, departureDate); err == nil {
+			weatherInfo.DestinationWeather = wData
+		}
+
+		response.Weather = weatherInfo
+	}
+
+	// 5. 回傳 JSON
+	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
 		"data":    response,
 	})
