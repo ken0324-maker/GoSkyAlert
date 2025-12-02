@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url" // 修正錯誤3：確保引用 url 套件
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -80,7 +80,7 @@ func (s *DiscordService) handleMessage(sess *discordgo.Session, m *discordgo.Mes
 			"✈️ **航班查詢**\n`/price [出發] [抵達] [日期]`\n範例：`/price TPE NRT 2026-03-01`\n\n" +
 			"💱 **匯率查詢**\n`/rate [持有貨幣] [目標貨幣] (金額)`\n範例：`/rate USD TWD` 或 `/rate JPY TWD 1000`\n\n" +
 			"🌤️ **天氣查詢**\n`/weather [城市名稱]`\n範例：`/weather Tokyo` 或 `/weather 台北`\n\n" +
-			"U+1F3DB️ **景點搜尋**\n`/spot [城市/地點]`\n範例：`/spot 大阪` 或 `/spot 101大樓`"
+			"🏛️ **景點搜尋**\n`/spot [城市/地點]`\n範例：`/spot 大阪` 或 `/spot 101大樓`"
 		sess.ChannelMessageSend(m.ChannelID, helpMsg)
 
 	// --- 航班查詢 ---
@@ -97,7 +97,9 @@ func (s *DiscordService) handleMessage(sess *discordgo.Session, m *discordgo.Mes
 		sess.ChannelMessageSend(m.ChannelID, fmt.Sprintf("🔍 正在搜尋 **%s ➝ %s** (%s) 的航班...", origin, dest, date))
 
 		req := models.SearchRequest{Origin: origin, Destination: dest, DepartureDate: date, Adults: 1, Currency: "TWD"}
-		flights, err := s.Amadeus.SearchFlights(req)
+		
+		// [修正] 這裡接收 3 個回傳值：flights, advice, err
+		flights, advice, err := s.Amadeus.SearchFlights(req)
 		if err != nil {
 			sess.ChannelMessageSend(m.ChannelID, fmt.Sprintf("❌ 搜尋失敗: %v", err))
 			return
@@ -109,6 +111,12 @@ func (s *DiscordService) handleMessage(sess *discordgo.Session, m *discordgo.Mes
 
 		var msg strings.Builder
 		msg.WriteString(fmt.Sprintf("✈️ **%s ➝ %s (%s)** 搜尋結果：\n", origin, dest, date))
+
+		// [新增] 顯示價格建議
+		if advice != nil {
+			msg.WriteString(fmt.Sprintf("\n💡 **分析建議**: %s\n", advice.Advice))
+		}
+
 		limit := 3
 		if len(flights) < limit {
 			limit = len(flights)
@@ -152,7 +160,6 @@ func (s *DiscordService) handleMessage(sess *discordgo.Session, m *discordgo.Mes
 		msg := fmt.Sprintf("💱 **匯率換算**\n\n1 %s = %.4f %s\n\n💰 **%.2f %s ≈ %.2f %s**",
 			from, rate, to, amount, from, converted, to)
 
-		// 修正錯誤1：msg 已經是字串，直接傳送，不要加 .String()
 		sess.ChannelMessageSend(m.ChannelID, msg)
 
 	// --- 天氣查詢 ---
@@ -202,7 +209,7 @@ func (s *DiscordService) handleMessage(sess *discordgo.Session, m *discordgo.Mes
 			return
 		}
 
-		// 修正錯誤2：移除 services. 前綴，直接使用 SearchRequest
+		// 這裡使用 services.SearchRequest
 		spots, err := s.Foursquare.SearchNearby(SearchRequest{
 			Latitude:  lat,
 			Longitude: lng,
@@ -221,7 +228,7 @@ func (s *DiscordService) handleMessage(sess *discordgo.Session, m *discordgo.Mes
 		}
 
 		var msg strings.Builder
-		msg.WriteString(fmt.Sprintf("U+1F3DB️ **%s** 附近的熱門景點：\n", formattedName))
+		msg.WriteString(fmt.Sprintf("🏛️ **%s** 附近的熱門景點：\n", formattedName))
 
 		limit := 5
 		if len(spots) < limit {
