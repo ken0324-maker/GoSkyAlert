@@ -492,6 +492,10 @@ class FlightSearchApp {
         
         this.hideElement('results');
         this.hideElement('error');
+        // ★★★ [新增] 搜尋開始前，先隱藏價格建議卡片，避免殘留上次結果 ★★★
+        if(document.getElementById('priceAdviceCard')) {
+            document.getElementById('priceAdviceCard').classList.add('hidden');
+        }
         this.showElement('loading');
 
         try {
@@ -596,10 +600,51 @@ class FlightSearchApp {
             const flights = data.data.flights;
             const weatherInfo = data.data.weather;
             const exchangeInfo = data.data.exchange;
+            // ★★★ [新增] 取得價格建議資料 ★★★
+            const advice = data.data.price_advice;
             
             countDiv.textContent = `找到 ${data.data.meta?.count || flights.length} 個航班`;
             console.log(`📈 顯示 ${flights.length} 個航班`);
             
+            // ★★★ [新增] 處理價格建議顯示邏輯 ★★★
+            const priceAdviceCard = document.getElementById('priceAdviceCard');
+            if (advice && priceAdviceCard) {
+                priceAdviceCard.classList.remove('hidden');
+                
+                // 填入數據
+                document.getElementById('adviceText').textContent = advice.advice;
+                document.getElementById('adviceCurrent').textContent = '$' + Math.round(advice.current_lowest);
+                
+                // 處理可能為 0 的歷史數據
+                const avgText = advice.history_avg > 0 ? '$' + Math.round(advice.history_avg) : '尚無資料';
+                document.getElementById('adviceAvg').textContent = avgText;
+                
+                const diffText = advice.history_avg > 0 ? advice.diff_percent.toFixed(1) + '%' : '--';
+                document.getElementById('adviceDiff').textContent = diffText;
+                
+                const lowText = advice.history_low > 0 ? '$' + Math.round(advice.history_low) : '--';
+                document.getElementById('adviceLow').textContent = lowText;
+
+                // 設定顏色樣式
+                let color = '#17a2b8'; // 藍色 (新紀錄/無趨勢)
+                let bgColor = '#f0fbfd';
+                
+                if (advice.trend === 'down') {
+                    color = '#28a745'; // 綠色 (降價)
+                    bgColor = '#f0fff4';
+                } else if (advice.trend === 'up') {
+                    color = '#dc3545'; // 紅色 (漲價)
+                    bgColor = '#fff0f0';
+                } else if (advice.trend === 'stable') {
+                    color = '#ffc107'; // 黃色 (持平)
+                    bgColor = '#fffbf0';
+                }
+
+                priceAdviceCard.style.borderLeftColor = color;
+                priceAdviceCard.style.backgroundColor = bgColor;
+            }
+            // ★★★ [新增結束] ★★★
+
             // 顯示天氣資訊
             if (weatherInfo) {
                 this.displayWeatherInfo(weatherInfo);
