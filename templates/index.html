@@ -110,7 +110,18 @@
             <div id="results" class="results hidden">
                 <h2><i class="fas fa-list"></i> 搜尋結果</h2>
                 <div id="resultsCount" class="results-count"></div>
-                
+                <div id="priceAdviceCard" class="hidden" style="background: #fff; border-radius: 8px; padding: 15px; margin: 15px 0; border-left: 5px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                    <div style="font-size: 1.1em; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center;">
+                        <i class="fas fa-chart-line" style="margin-right: 8px;"></i> 價格分析建議
+                    </div>
+                    <div id="adviceText" style="font-size: 1.2em; font-weight: bold; margin-bottom: 10px; color: #333;"></div>
+                    <div style="display: flex; gap: 15px; font-size: 0.9em; color: #666; flex-wrap: wrap;">
+                        <span><i class="fas fa-tag"></i> 本次最低: <strong id="adviceCurrent" style="color: #000;"></strong></span>
+                        <span><i class="fas fa-history"></i> 歷史平均: <span id="adviceAvg"></span></span>
+                        <span><i class="fas fa-percent"></i> 價差幅度: <span id="adviceDiff"></span></span>
+                        <span><i class="fas fa-arrow-down"></i> 歷史低價: <span id="adviceLow"></span></span>
+                    </div>
+                </div>
                 <!-- 天氣資訊區塊 -->
                 <div id="weatherInfo" class="weather-info hidden">
                     <h3><i class="fas fa-cloud-sun"></i> 天氣資訊</h3>
