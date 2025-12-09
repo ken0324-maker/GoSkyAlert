@@ -88,5 +88,3 @@ Discord 指令
 |static/|存放靜態文件（CSS, JS 等）。|
 |templates/|存放 HTML 模板文件，index.html 為前端單頁應用。|
 
-<<<<<<< HEAD
-AMADEUS_API_KEY 和 AMADEUS_API_SECRET => https://developers.amadeus.com/self-service/apis-docs/guides/developer-guides/quick-start/
