@@ -25,7 +25,7 @@
 | **WorldTimeAPI** | 時區時差計算 | *無需金鑰* | [WorldTimeAPI](http://worldtimeapi.org/) |
 | **OpenStreetMap Nominatim** | 地理編碼（地址轉經緯度） | *無需金鑰* | [Nominatim](https://nominatim.org/) |
 | **Telegram** | 航班通知功能 | `TELEGRAM_BOT_TOKEN` | *可選* |
-| **Discord** | BOT | *無需金鑰* | 加入群駔 : https://discord.gg/55VemjSU |
+| **Discord** | BOT | *無需金鑰* | 加入群組 : https://discord.gg/55VemjSU |
 
 ## 環境設置與運行
 
